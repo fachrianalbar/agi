@@ -44,6 +44,7 @@
           class="table js-data-table"
           id="fleetTable"
           data-url="{{ route('fleets.data') }}"
+          data-enrichment-url="{{ route('fleets.latest-positions') }}"
           data-order='[[2,"asc"]]'
           data-plural-label="fleets"
         >
@@ -54,7 +55,10 @@
               <th data-column="vehicle_name">Vehicle Name</th>
               <th data-column="device_name">Device Name</th>
               <th data-column="customer_name" data-orderable="false">Customer</th>
-              <th data-column="status" data-name="is_active" data-align="center">Status</th>
+              <th data-column="mileage" data-orderable="false" data-searchable="false">Mileage</th>
+              <th data-column="vehicle_status" data-orderable="false" data-searchable="false" data-align="center">Vehicle Status</th>
+              <th data-column="engine" data-orderable="false" data-searchable="false" data-align="center">Engine</th>
+              <th data-column="last_update" data-orderable="false" data-searchable="false">Last Update</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -100,6 +104,22 @@
         </button>
       </div>
     </form>
+  </x-modal>
+
+  <x-modal id="fleetMapModal" title="Last Vehicle Position" size="lg">
+    <div class="map-modal-header">
+      <span data-map-vehicle-name></span>
+    </div>
+    <div class="map-modal-body">
+      <iframe
+        class="map-modal-frame"
+        data-map-frame
+        src="about:blank"
+        title="Vehicle location map"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+    </div>
   </x-modal>
 </div>
 @endsection

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Requests\Fleet\SyncFleetRequest;
 use App\Models\Customer;
 use App\Models\Fleet;
+use App\Services\FleetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +24,8 @@ class FleetSynchronizationTest extends TestCase
         $this->get(route('fleets.index'))
             ->assertOk()
             ->assertSee('Synchronize Fleets')
+            ->assertSee('fleetMapModal')
+            ->assertDontSee('Fleet Status')
             ->assertSee($customer->name)
             ->assertSee($customer->username)
             ->assertDontSee($customer->password);
@@ -231,6 +234,129 @@ class FleetSynchronizationTest extends TestCase
         ]);
     }
 
+    public function test_latest_positions_are_loaded_for_visible_fleets_and_cached(): void
+    {
+        $customer = $this->createCustomer();
+        $firstFleet = $this->createFleet($customer, 'B 2029 SJO', '60697058200041');
+        $secondFleet = $this->createFleet($customer, 'B 1071 DFP', '42976836');
+        $tokenRequests = 0;
+        $positionRequests = 0;
+
+        Http::fake(function (Request $request) use (&$tokenRequests, &$positionRequests) {
+            $query = $this->queryParameters($request);
+
+            if (str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/token')) {
+                $tokenRequests++;
+
+                return Http::response([
+                    'access_token' => 'customer-access-token',
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            $positionRequests++;
+            $this->assertSame('customer-access-token', $query['access_token']);
+
+            return Http::response(json_encode(json_encode([[
+                [
+                    'vehicleName' => $query['device_name'] === '60697058200041'
+                        ? 'B 2029 SJO'
+                        : 'B 1071 DFP',
+                    'deviceName' => $query['device_name'],
+                    'datetime' => '2026-06-09 20:35:07',
+                    'mileage' => 10137.443,
+                    'heading' => 65,
+                    'speed' => 0.2,
+                    'latitude' => -0.47737,
+                    'longitude' => 117.137335,
+                    'acc' => 0,
+                    'statusIcon' => 2,
+                ],
+            ]])));
+        });
+
+        $devices = [
+            $this->positionRequestDevice($firstFleet),
+            $this->positionRequestDevice($secondFleet),
+        ];
+        $firstReference = $devices[0]['ref'];
+
+        $this->postJson(route('fleets.latest-positions'), compact('devices'))
+            ->assertOk()
+            ->assertJsonPath("data.{$firstReference}.vehicle_status.text", 'Stop')
+            ->assertJsonPath("data.{$firstReference}.vehicle_status.badge", 'danger')
+            ->assertJsonPath("data.{$firstReference}.engine.text", 'Off')
+            ->assertJsonPath("data.{$firstReference}.last_update.text", '09 Juni 2026 20:35:07')
+            ->assertJsonPath(
+                "data.{$firstReference}.map.url",
+                'https://maps.google.com/maps?q=-0.47737,117.137335&z=16&output=embed',
+            )
+            ->assertDontSee($firstFleet->id);
+
+        $this->postJson(route('fleets.latest-positions'), compact('devices'))
+            ->assertOk();
+
+        $this->assertSame(1, $tokenRequests);
+        $this->assertSame(2, $positionRequests);
+    }
+
+    public function test_latest_positions_use_separate_tokens_for_each_customer(): void
+    {
+        $firstCustomer = $this->createCustomer();
+        $secondCustomer = $this->createCustomer([
+            'name' => 'Second Customer',
+            'username' => 'second',
+            'email' => 'second@example.com',
+            'password' => 'second-password',
+        ]);
+        $firstFleet = $this->createFleet($firstCustomer, 'Fleet One', 'device-one');
+        $secondFleet = $this->createFleet($secondCustomer, 'Fleet Two', 'device-two');
+        $tokenAccounts = [];
+        $positionTokens = [];
+
+        Http::fake(function (Request $request) use (&$tokenAccounts, &$positionTokens) {
+            $query = $this->queryParameters($request);
+
+            if (str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/token')) {
+                $tokenAccounts[] = $query['account_name'];
+
+                return Http::response([
+                    'access_token' => "token-{$query['account_name']}",
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            $positionTokens[$query['device_name']] = $query['access_token'];
+
+            return Http::response([[
+                [
+                    'vehicleName' => $query['device_name'],
+                    'deviceName' => $query['device_name'],
+                    'datetime' => '2026-06-09 20:35:07',
+                    'mileage' => 1,
+                    'latitude' => -6.2,
+                    'longitude' => 106.8,
+                    'acc' => 1,
+                    'statusIcon' => 1,
+                ],
+            ]]);
+        });
+
+        $devices = [
+            $this->positionRequestDevice($firstFleet),
+            $this->positionRequestDevice($secondFleet),
+        ];
+
+        $this->postJson(route('fleets.latest-positions'), compact('devices'))
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+
+        sort($tokenAccounts);
+        $this->assertSame(['agi', 'second'], $tokenAccounts);
+        $this->assertSame('token-agi', $positionTokens['device-one']);
+        $this->assertSame('token-second', $positionTokens['device-two']);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -243,6 +369,30 @@ class FleetSynchronizationTest extends TestCase
             'password' => 'plain-api-password',
             'is_active' => true,
         ], $overrides));
+    }
+
+    private function createFleet(
+        Customer $customer,
+        string $vehicleName,
+        string $deviceName,
+    ): Fleet {
+        return Fleet::query()->create([
+            'customer_id' => $customer->id,
+            'vehicle_name' => $vehicleName,
+            'device_name' => $deviceName,
+            'is_active' => true,
+        ]);
+    }
+
+    /**
+     * @return array{ref: string, device_name: string}
+     */
+    private function positionRequestDevice(Fleet $fleet): array
+    {
+        return [
+            'ref' => app(FleetService::class)->positionReference($fleet),
+            'device_name' => $fleet->device_name,
+        ];
     }
 
     /**

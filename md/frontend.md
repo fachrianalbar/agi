@@ -583,6 +583,82 @@ Runtime global akan:
 - mereset Select2;
 - me-refresh semua `.js-data-table` pada halaman.
 
+### DataTable Enrichment
+
+Data eksternal atau realtime tidak boleh memperlambat response Yajra utama.
+Tambahkan endpoint enrichment pada table:
+
+```blade
+<table
+  class="table js-data-table"
+  data-url="{{ route('records.data') }}"
+  data-enrichment-url="{{ route('records.latest-values') }}"
+>
+```
+
+Cell yang akan diisi setelah draw menggunakan kontrak berikut:
+
+```blade
+<span
+  class="enrichment-value enrichment-loading"
+  data-enrichment-ref="{{ $reference }}"
+  data-enrichment-source-key="{{ $externalKey }}"
+  data-enrichment-field="status"
+>
+  Loading...
+</span>
+```
+
+Action peta yang baru aktif setelah enrichment berhasil:
+
+```blade
+<button
+  type="button"
+  class="table-action-btn is-disabled"
+  data-enrichment-ref="{{ $reference }}"
+  data-enrichment-source-key="{{ $externalKey }}"
+  data-enrichment-map="map"
+  data-map-modal-target="recordMapModal"
+  aria-disabled="true"
+  disabled
+>
+```
+
+Runtime `crud.js` akan:
+
+- mengirim hanya row pada halaman aktif;
+- membatalkan request halaman sebelumnya ketika pagination berubah;
+- memperbarui text, badge, dan action peta dari response JSON;
+- menampilkan `Unavailable` tanpa menggagalkan DataTable;
+- menjalankan proses kembali pada pagination, search, order, dan page length.
+
+Reference harus berupa nilai opaque/HMAC. Jangan menaruh ULID dalam atribut DOM
+atau payload enrichment.
+
+Endpoint mengembalikan data berdasarkan reference:
+
+```json
+{
+  "data": {
+    "opaque-reference": {
+      "status": {
+        "text": "Running",
+        "badge": "success"
+      },
+      "map": {
+        "url": "https://maps.google.com/maps?q=-6.2,106.8&z=16&output=embed"
+      }
+    }
+  }
+}
+```
+
+Nilai `badge` mengikuti variant global: `success`, `warning`, `danger`, `info`,
+atau `neutral`. Action tanpa URL tetap disabled. Action peta harus membuka
+`<x-modal size="lg">` yang berisi iframe `[data-map-frame]`, bukan tab baru.
+Gunakan URL Google Maps `output=embed` agar tidak memerlukan API key. Runtime
+global mengosongkan `src` iframe saat modal ditutup.
+
 ## 20. Quality Gate
 
 Jalankan:

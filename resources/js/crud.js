@@ -16,6 +16,15 @@ const swalTheme = {
     confirmButtonColor: '#E2725B',
     cancelButtonColor: '#A08980',
 };
+const enrichmentRequests = new WeakMap();
+const badgeClasses = [
+    'badge',
+    'badge-success',
+    'badge-warning',
+    'badge-danger',
+    'badge-info',
+    'badge-neutral',
+];
 
 function parseJson(value, fallback) {
     if (!value) {
@@ -118,6 +127,10 @@ function closeModal(modal) {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+
+    modal.querySelectorAll('[data-map-frame]').forEach((frame) => {
+        frame.src = 'about:blank';
+    });
 }
 
 function initializeModals(page) {
@@ -145,6 +158,32 @@ function initializeModals(page) {
         if (event.key === 'Escape') {
             closeModal(page.querySelector('[data-modal].show'));
         }
+    });
+}
+
+function initializeMapModals(page) {
+    page.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-map-modal-target]');
+
+        if (!trigger || trigger.disabled || !trigger.dataset.mapUrl) {
+            return;
+        }
+
+        const modal = document.getElementById(trigger.dataset.mapModalTarget);
+        const frame = modal?.querySelector('[data-map-frame]');
+        const vehicleName = modal?.querySelector('[data-map-vehicle-name]');
+
+        if (!modal || !frame) {
+            return;
+        }
+
+        frame.src = trigger.dataset.mapUrl;
+
+        if (vehicleName) {
+            vehicleName.textContent = trigger.dataset.mapTitle || '';
+        }
+
+        openModal(modal);
     });
 }
 
@@ -202,6 +241,157 @@ async function deleteRecord(button, page, table) {
     }
 }
 
+function setEnrichmentUnavailable(tableElement) {
+    tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
+        element.textContent = 'Unavailable';
+        element.classList.remove('enrichment-loading', ...badgeClasses);
+        element.classList.add('enrichment-error');
+    });
+
+    tableElement.querySelectorAll('[data-enrichment-link]').forEach((link) => {
+        link.setAttribute('href', '#');
+        link.setAttribute('aria-disabled', 'true');
+        link.setAttribute('title', 'Position unavailable');
+        link.classList.add('is-disabled');
+    });
+
+    tableElement.querySelectorAll('[data-enrichment-map]').forEach((button) => {
+        button.disabled = true;
+        button.dataset.mapUrl = '';
+        button.setAttribute('aria-disabled', 'true');
+        button.setAttribute('title', 'Position unavailable');
+        button.classList.add('is-disabled');
+    });
+}
+
+function applyTableEnrichment(tableElement, data) {
+    tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
+        const record = data[element.dataset.enrichmentRef];
+        const value = record?.[element.dataset.enrichmentField];
+
+        element.classList.remove('enrichment-loading', 'enrichment-error', ...badgeClasses);
+
+        if (!value || typeof value.text !== 'string') {
+            element.textContent = 'Unavailable';
+            element.classList.add('enrichment-error');
+
+            return;
+        }
+
+        element.textContent = value.text;
+
+        if (value.badge) {
+            element.classList.add('badge', `badge-${value.badge}`);
+        }
+
+        if (value.state === 'error') {
+            element.classList.add('enrichment-error');
+        }
+    });
+
+    tableElement.querySelectorAll('[data-enrichment-link]').forEach((link) => {
+        const record = data[link.dataset.enrichmentRef];
+        const value = record?.[link.dataset.enrichmentLink];
+
+        if (!value?.url) {
+            link.setAttribute('href', '#');
+            link.setAttribute('aria-disabled', 'true');
+            link.setAttribute('title', 'Position unavailable');
+            link.classList.add('is-disabled');
+
+            return;
+        }
+
+        link.setAttribute('href', value.url);
+        link.setAttribute('aria-disabled', 'false');
+        link.setAttribute('title', 'Open last position in Google Maps');
+        link.classList.remove('is-disabled');
+    });
+
+    tableElement.querySelectorAll('[data-enrichment-map]').forEach((button) => {
+        const record = data[button.dataset.enrichmentRef];
+        const value = record?.[button.dataset.enrichmentMap];
+
+        if (!value?.url) {
+            button.disabled = true;
+            button.dataset.mapUrl = '';
+            button.setAttribute('aria-disabled', 'true');
+            button.setAttribute('title', 'Position unavailable');
+            button.classList.add('is-disabled');
+
+            return;
+        }
+
+        button.disabled = false;
+        button.dataset.mapUrl = value.url;
+        button.setAttribute('aria-disabled', 'false');
+        button.setAttribute('title', 'View last position on map');
+        button.classList.remove('is-disabled');
+    });
+}
+
+async function loadTableEnrichment(tableElement, page) {
+    const url = tableElement.dataset.enrichmentUrl;
+
+    if (!url) {
+        return;
+    }
+
+    enrichmentRequests.get(tableElement)?.abort();
+
+    const controller = new AbortController();
+    enrichmentRequests.set(tableElement, controller);
+    const devicesByReference = new Map();
+
+    tableElement.querySelectorAll('[data-enrichment-ref][data-enrichment-source-key]').forEach((element) => {
+        devicesByReference.set(element.dataset.enrichmentRef, {
+            ref: element.dataset.enrichmentRef,
+            device_name: element.dataset.enrichmentSourceKey,
+        });
+    });
+
+    if (devicesByReference.size === 0) {
+        return;
+    }
+
+    tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
+        element.textContent = 'Loading...';
+        element.classList.remove('enrichment-error', ...badgeClasses);
+        element.classList.add('enrichment-loading');
+    });
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': page.dataset.csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({
+                devices: Array.from(devicesByReference.values()),
+            }),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(payload.message || 'Latest positions could not be loaded.');
+        }
+
+        applyTableEnrichment(tableElement, payload.data || {});
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            setEnrichmentUnavailable(tableElement);
+        }
+    } finally {
+        if (enrichmentRequests.get(tableElement) === controller) {
+            enrichmentRequests.delete(tableElement);
+        }
+    }
+}
+
 function initializeDataTable(tableElement, page) {
     const pluralLabel = tableElement.dataset.pluralLabel || 'records';
     const table = new DataTable(tableElement, {
@@ -211,6 +401,9 @@ function initializeDataTable(tableElement, page) {
         order: parseJson(tableElement.dataset.order, [[1, 'asc']]),
         pageLength: Number(tableElement.dataset.pageLength || 10),
         columns: getColumns(tableElement),
+        drawCallback: () => {
+            loadTableEnrichment(tableElement, page);
+        },
         language: {
             search: '',
             searchPlaceholder: tableElement.dataset.searchPlaceholder || `Search ${pluralLabel}...`,
@@ -303,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.js-crud-page').forEach((page) => {
         showFlashMessage(page);
         initializeModals(page);
+        initializeMapModals(page);
 
         const tables = Array.from(page.querySelectorAll('.js-data-table')).map((table) => (
             initializeDataTable(table, page)

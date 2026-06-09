@@ -6,9 +6,12 @@ use App\Exceptions\ExternalFleetApiException;
 use App\Models\Customer;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class TotalKilatGpsService
 {
@@ -40,6 +43,86 @@ class TotalKilatGpsService
         }
 
         return $this->normalizeDevices($payload);
+    }
+
+    /**
+     * Get latest positions keyed by device name.
+     *
+     * @param  list<string>  $deviceNames
+     * @return array<string, array{
+     *     datetime: string,
+     *     mileage: float,
+     *     heading: int,
+     *     speed: float,
+     *     latitude: float,
+     *     longitude: float,
+     *     acc: int,
+     *     status_icon: int
+     * }>
+     */
+    public function getLatestPositions(Customer $customer, array $deviceNames): array
+    {
+        $deviceNames = array_values(array_unique(array_filter(
+            array_map(static fn ($deviceName) => trim((string) $deviceName), $deviceNames),
+        )));
+        $positions = [];
+        $uncachedDeviceNames = [];
+
+        foreach ($deviceNames as $deviceName) {
+            $cachedPosition = Cache::get($this->positionCacheKey($customer, $deviceName));
+
+            if (is_array($cachedPosition)) {
+                $positions[$deviceName] = $cachedPosition;
+            } else {
+                $uncachedDeviceNames[] = $deviceName;
+            }
+        }
+
+        if ($uncachedDeviceNames === []) {
+            return $positions;
+        }
+
+        $token = $this->getAccessToken($customer);
+        $responses = $this->requestLatestPositionPool($token, $uncachedDeviceNames);
+        $tokenRejectedDevices = [];
+
+        foreach ($responses as $deviceName => $response) {
+            $payload = $this->safeJsonPayload($response);
+
+            if ($payload !== null && $this->isAccessTokenError($payload)) {
+                $tokenRejectedDevices[] = $deviceName;
+            }
+        }
+
+        if ($tokenRejectedDevices !== []) {
+            Cache::forget($this->tokenCacheKey($customer));
+            $token = $this->getAccessToken($customer, refresh: true);
+            $refreshedResponses = $this->requestLatestPositionPool($token, $tokenRejectedDevices);
+            $responses = array_replace($responses, $refreshedResponses);
+        }
+
+        foreach ($responses as $deviceName => $response) {
+            $payload = $this->safeJsonPayload($response);
+
+            if ($payload === null || $this->isAccessTokenError($payload) || isset($payload['errcode'])) {
+                continue;
+            }
+
+            $position = $this->normalizeLatestPosition($payload, $deviceName);
+
+            if ($position === null) {
+                continue;
+            }
+
+            $positions[$deviceName] = $position;
+            Cache::put(
+                $this->positionCacheKey($customer, $deviceName),
+                $position,
+                now()->addSeconds((int) config('services.total_kilat_gps.position_cache_seconds', 20)),
+            );
+        }
+
+        return $positions;
     }
 
     private function getAccessToken(Customer $customer, bool $refresh = false): string
@@ -110,6 +193,31 @@ class TotalKilatGpsService
     }
 
     /**
+     * @param  list<string>  $deviceNames
+     * @return array<string, Response|Throwable>
+     */
+    private function requestLatestPositionPool(string $token, array $deviceNames): array
+    {
+        return $this->client()->pool(
+            function (Pool $pool) use ($token, $deviceNames): void {
+                foreach ($deviceNames as $deviceName) {
+                    $pool->as($deviceName)
+                        ->baseUrl(rtrim((string) config('services.total_kilat_gps.base_url'), '/'))
+                        ->acceptJson()
+                        ->connectTimeout((int) config('services.total_kilat_gps.connect_timeout', 5))
+                        ->timeout((int) config('services.total_kilat_gps.timeout', 20))
+                        ->get('/latestVehiclePosition', [
+                            'grant_type' => $this->grantType(),
+                            'access_token' => $token,
+                            'device_name' => $deviceName,
+                        ]);
+                }
+            },
+            (int) config('services.total_kilat_gps.position_concurrency', 10),
+        );
+    }
+
+    /**
      * @return array<mixed>
      */
     private function jsonPayload(Response $response): array
@@ -133,6 +241,22 @@ class TotalKilatGpsService
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array<mixed>|null
+     */
+    private function safeJsonPayload(Response|Throwable $response): ?array
+    {
+        if (! $response instanceof Response || ! $response->successful()) {
+            return null;
+        }
+
+        try {
+            return $this->jsonPayload($response);
+        } catch (ExternalFleetApiException) {
+            return null;
+        }
     }
 
     /**
@@ -178,6 +302,66 @@ class TotalKilatGpsService
 
     /**
      * @param  array<mixed>  $payload
+     * @return array{
+     *     datetime: string,
+     *     mileage: float,
+     *     heading: int,
+     *     speed: float,
+     *     latitude: float,
+     *     longitude: float,
+     *     acc: int,
+     *     status_icon: int
+     * }|null
+     */
+    private function normalizeLatestPosition(array $payload, string $deviceName): ?array
+    {
+        $position = null;
+
+        $walk = function (array $items) use (&$walk, &$position, $deviceName): void {
+            if ($position !== null) {
+                return;
+            }
+
+            if (
+                array_key_exists('deviceName', $items)
+                && (string) $items['deviceName'] === $deviceName
+            ) {
+                $position = $items;
+
+                return;
+            }
+
+            foreach ($items as $item) {
+                if (is_array($item)) {
+                    $walk($item);
+                }
+            }
+        };
+
+        $walk($payload);
+
+        if (
+            ! is_array($position)
+            || ! is_numeric(Arr::get($position, 'latitude'))
+            || ! is_numeric(Arr::get($position, 'longitude'))
+        ) {
+            return null;
+        }
+
+        return [
+            'datetime' => trim((string) Arr::get($position, 'datetime', '')),
+            'mileage' => (float) Arr::get($position, 'mileage', 0),
+            'heading' => (int) Arr::get($position, 'heading', 0),
+            'speed' => (float) Arr::get($position, 'speed', 0),
+            'latitude' => (float) Arr::get($position, 'latitude'),
+            'longitude' => (float) Arr::get($position, 'longitude'),
+            'acc' => (int) Arr::get($position, 'acc', 0),
+            'status_icon' => (int) Arr::get($position, 'statusIcon', 0),
+        ];
+    }
+
+    /**
+     * @param  array<mixed>  $payload
      */
     private function isAccessTokenError(array $payload): bool
     {
@@ -189,6 +373,11 @@ class TotalKilatGpsService
         $credentialFingerprint = hash('sha256', "{$customer->username}\0{$customer->password}");
 
         return "total-kilat-gps:customer:{$customer->id}:token:{$credentialFingerprint}";
+    }
+
+    private function positionCacheKey(Customer $customer, string $deviceName): string
+    {
+        return "total-kilat-gps:customer:{$customer->id}:position:".hash('sha256', $deviceName);
     }
 
     private function grantType(): string

@@ -1285,11 +1285,13 @@ body {
   backdrop-filter: blur(4px);
   z-index: 300;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: 40px 0;
   opacity: 0;
   visibility: hidden;
   transition: all var(--transition-base);
+  overflow-y: auto;
 }
 
 .modal-overlay.show {
@@ -1712,6 +1714,10 @@ body {
 }
 
 @media (max-width: 768px) {
+  .modal-overlay {
+    padding: 16px 0;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     width: var(--sidebar-width);

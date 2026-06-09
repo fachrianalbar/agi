@@ -154,6 +154,30 @@ Token eksternal yang dipakai berulang harus disimpan di cache:
 - jika provider menolak token, hapus cache dan refresh maksimal satu kali;
 - jangan melakukan retry tanpa batas.
 
+Data realtime untuk DataTable besar tidak boleh dipanggil saat query Yajra sedang
+dibentuk. Gunakan enrichment request terpisah setelah row halaman aktif selesai
+dirender:
+
+1. DataTable mengambil master data dari database lokal;
+2. browser mengirim maksimal row yang sedang terlihat;
+3. backend memvalidasi HMAC reference, bukan menerima ULID mentah;
+4. backend mengelompokkan fleet berdasarkan customer;
+5. token diambil dari cache per customer;
+6. request device customer yang sama dijalankan dengan HTTP pool;
+7. hasil singkat disimpan di cache per customer dan device;
+8. browser mengisi cell tanpa me-reload DataTable.
+
+Konfigurasi jumlah concurrent request dan TTL posisi berada di
+`config/services.php`. Kegagalan satu device menghasilkan status unavailable dan
+tidak menggagalkan posisi device lain.
+
+Mapping status GPS fleet:
+
+- `0`: `INACTIVE`;
+- `1`: `Running`;
+- `2`: `Stop`;
+- `3`: `Idle`.
+
 Sinkronisasi data menggunakan unique business key yang eksplisit. Operasi upsert
 berjalan dalam transaction dan harus membedakan jumlah record `created`,
 `updated`, dan `unchanged`. Record soft-deleted boleh dipulihkan jika business key

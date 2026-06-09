@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Fleet;
+use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 
 class FleetService
 {
@@ -104,6 +107,142 @@ class FleetService
 
             return $summary;
         });
+    }
+
+    public function positionReference(Fleet $fleet): string
+    {
+        return hash_hmac('sha256', $fleet->id, (string) config('app.key'));
+    }
+
+    /**
+     * Get presentation-ready latest positions for visible DataTable rows.
+     *
+     * @param  list<array{ref: string, device_name: string}>  $requestedDevices
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    public function getLatestPositions(array $requestedDevices): array
+    {
+        $deviceNames = collect($requestedDevices)
+            ->pluck('device_name')
+            ->filter()
+            ->unique()
+            ->values();
+        $requestedByReference = collect($requestedDevices)->keyBy('ref');
+        $fleets = Fleet::query()
+            ->with('customer')
+            ->whereIn('device_name', $deviceNames)
+            ->get()
+            ->filter(function (Fleet $fleet) use ($requestedByReference): bool {
+                $reference = $this->positionReference($fleet);
+                $requested = $requestedByReference->get($reference);
+
+                return is_array($requested)
+                    && hash_equals($reference, (string) $requested['ref'])
+                    && $fleet->device_name === $requested['device_name'];
+            });
+        $result = [];
+
+        foreach ($fleets->groupBy('customer_id') as $customerFleets) {
+            $customer = $customerFleets->first()?->customer;
+
+            if (! $customer) {
+                continue;
+            }
+
+            $positions = $this->gpsService->getLatestPositions(
+                $customer,
+                $customerFleets->pluck('device_name')->all(),
+            );
+
+            foreach ($customerFleets as $fleet) {
+                $reference = $this->positionReference($fleet);
+                $position = $positions[$fleet->device_name] ?? null;
+                $result[$reference] = $position
+                    ? $this->formatLatestPosition($position)
+                    : $this->unavailablePosition();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array{
+     *     datetime: string,
+     *     mileage: float,
+     *     heading: int,
+     *     speed: float,
+     *     latitude: float,
+     *     longitude: float,
+     *     acc: int,
+     *     status_icon: int
+     * }  $position
+     * @return array<string, array<string, mixed>>
+     */
+    private function formatLatestPosition(array $position): array
+    {
+        [$statusLabel, $statusVariant] = match ($position['status_icon']) {
+            1 => ['Running', 'success'],
+            2 => ['Stop', 'danger'],
+            3 => ['Idle', 'warning'],
+            default => ['INACTIVE', 'neutral'],
+        };
+        $engineOn = $position['acc'] === 1;
+        $latitude = $position['latitude'];
+        $longitude = $position['longitude'];
+
+        return [
+            'mileage' => [
+                'text' => Number::format($position['mileage'], maxPrecision: 3).' km',
+            ],
+            'vehicle_status' => [
+                'text' => $statusLabel,
+                'badge' => $statusVariant,
+            ],
+            'engine' => [
+                'text' => $engineOn ? 'On' : 'Off',
+                'badge' => $engineOn ? 'success' : 'neutral',
+            ],
+            'last_update' => [
+                'text' => $this->formatIndonesianDateTime($position['datetime']),
+            ],
+            'map' => [
+                'url' => sprintf(
+                    'https://maps.google.com/maps?q=%s,%s&z=16&output=embed',
+                    rawurlencode((string) $latitude),
+                    rawurlencode((string) $longitude),
+                ),
+            ],
+        ];
+    }
+
+    private function formatIndonesianDateTime(string $dateTime): string
+    {
+        if ($dateTime === '') {
+            return '—';
+        }
+
+        try {
+            return CarbonImmutable::createFromFormat('Y-m-d H:i:s', $dateTime)
+                ->locale('id')
+                ->translatedFormat('d F Y H:i:s');
+        } catch (InvalidFormatException) {
+            return '—';
+        }
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function unavailablePosition(): array
+    {
+        return [
+            'mileage' => ['text' => 'Unavailable', 'state' => 'error'],
+            'vehicle_status' => ['text' => 'Unavailable', 'badge' => 'neutral'],
+            'engine' => ['text' => 'Unavailable', 'badge' => 'neutral'],
+            'last_update' => ['text' => 'Unavailable', 'state' => 'error'],
+            'map' => ['url' => null],
+        ];
     }
 
     /**

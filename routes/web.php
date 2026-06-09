@@ -41,6 +41,7 @@ Route::resource('customers', \App\Http\Controllers\CustomerController::class)->e
 
 // Fleet management
 Route::get('fleets/data', [\App\Http\Controllers\FleetController::class, 'data'])->name('fleets.data');
+Route::post('fleets/latest-positions', [\App\Http\Controllers\FleetController::class, 'latestPositions'])->name('fleets.latest-positions');
 Route::post('fleets/sync', [\App\Http\Controllers\FleetController::class, 'sync'])->name('fleets.sync');
 Route::resource('fleets', \App\Http\Controllers\FleetController::class)->except('show');
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ExternalFleetApiException;
+use App\Http\Requests\Fleet\LatestFleetPositionRequest;
 use App\Http\Requests\Fleet\StoreFleetRequest;
 use App\Http\Requests\Fleet\SyncFleetRequest;
 use App\Http\Requests\Fleet\UpdateFleetRequest;
@@ -48,12 +49,27 @@ class FleetController extends Controller
                 fn (Fleet $fleet) => $fleet->customer?->name ?? '—',
             )
             ->addColumn(
-                'status',
-                fn (Fleet $fleet) => view('pages.fleets.columns.status', compact('fleet'))->render(),
+                'mileage',
+                fn (Fleet $fleet) => $this->positionCell($fleet, 'mileage'),
+            )
+            ->addColumn(
+                'vehicle_status',
+                fn (Fleet $fleet) => $this->positionCell($fleet, 'vehicle_status'),
+            )
+            ->addColumn(
+                'engine',
+                fn (Fleet $fleet) => $this->positionCell($fleet, 'engine'),
+            )
+            ->addColumn(
+                'last_update',
+                fn (Fleet $fleet) => $this->positionCell($fleet, 'last_update'),
             )
             ->addColumn(
                 'action',
-                fn (Fleet $fleet) => view('pages.fleets.columns.action', compact('fleet'))->render(),
+                fn (Fleet $fleet) => view('pages.fleets.columns.action', [
+                    'fleet' => $fleet,
+                    'positionReference' => $this->fleetService->positionReference($fleet),
+                ])->render(),
             )
             ->filterColumn('customer_name', function (Builder $query, string $keyword): void {
                 $query->whereHas('customer', function (Builder $q) use ($keyword): void {
@@ -65,10 +81,42 @@ class FleetController extends Controller
                 'vehicle_name',
                 'device_name',
                 'customer_name',
-                'status',
+                'mileage',
+                'vehicle_status',
+                'engine',
+                'last_update',
             ])
-            ->rawColumns(['action', 'vehicle_name', 'status'])
+            ->rawColumns([
+                'action',
+                'vehicle_name',
+                'mileage',
+                'vehicle_status',
+                'engine',
+                'last_update',
+            ])
             ->toJson();
+    }
+
+    /**
+     * Return latest GPS positions for the visible DataTable rows.
+     */
+    public function latestPositions(LatestFleetPositionRequest $request): JsonResponse
+    {
+        try {
+            $positions = $this->fleetService->getLatestPositions(
+                $request->validated('devices'),
+            );
+        } catch (ExternalFleetApiException $exception) {
+            Log::warning('Latest fleet positions could not be loaded.', [
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 502);
+        }
+
+        return response()->json(['data' => $positions]);
     }
 
     /**
@@ -185,5 +233,14 @@ class FleetController extends Controller
         return redirect()
             ->route('fleets.index')
             ->with('info', "Fleet \"{$vehicleName}\" deleted.");
+    }
+
+    private function positionCell(Fleet $fleet, string $field): string
+    {
+        return view('pages.fleets.columns.position', [
+            'field' => $field,
+            'fleet' => $fleet,
+            'positionReference' => $this->fleetService->positionReference($fleet),
+        ])->render();
     }
 }
