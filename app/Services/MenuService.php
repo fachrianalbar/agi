@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Menu;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -14,19 +13,7 @@ class MenuService
     public function getDataTableQuery(): Builder
     {
         return Menu::query()
-            ->with('parent:id,name')
             ->select('menus.*');
-    }
-
-    public function getParentOptions(?Menu $menu = null): EloquentCollection
-    {
-        return Menu::query()
-            ->whereNull('parent_id')
-            ->when($menu, fn ($query) => $query->whereKeyNot($menu->getKey()))
-            ->orderBy('section')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name', 'section']);
     }
 
     public function getSidebarMenus(): Collection
@@ -38,9 +25,6 @@ class MenuService
         return Menu::query()
             ->whereNull('parent_id')
             ->where('is_active', true)
-            ->with([
-                'children' => fn ($query) => $query->where('is_active', true),
-            ])
             ->orderBy('section')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -50,13 +34,19 @@ class MenuService
 
     public function create(array $data): Menu
     {
-        return DB::transaction(fn () => Menu::query()->create($data));
+        return DB::transaction(fn () => Menu::query()->create([
+            ...$data,
+            'parent_id' => null,
+        ]));
     }
 
     public function update(Menu $menu, array $data): Menu
     {
         return DB::transaction(function () use ($menu, $data) {
-            $menu->update($data);
+            $menu->update([
+                ...$data,
+                'parent_id' => null,
+            ]);
 
             return $menu->refresh();
         });

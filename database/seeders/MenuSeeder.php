@@ -11,7 +11,6 @@ class MenuSeeder extends Seeder
     {
         $menus = [
             ['name' => 'Customers', 'section' => 'Administrator', 'icon' => 'agents', 'route_name' => 'customers.index', 'active_pattern' => 'customers.*', 'sort_order' => 10],
-            ['name' => 'Fleets', 'section' => 'Administrator', 'icon' => 'activity', 'route_name' => 'fleets.index', 'active_pattern' => 'fleets.*', 'sort_order' => 15],
             ['name' => 'Menu Management', 'section' => 'Administrator', 'icon' => 'menu', 'route_name' => 'menus.index', 'active_pattern' => 'menus.*', 'sort_order' => 20],
         ];
 

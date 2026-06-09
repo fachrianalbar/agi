@@ -89,6 +89,10 @@ Penamaan menggunakan bentuk tunggal untuk class, misalnya `MenuController`,
 
 - Seeder harus idempotent bila mungkin, misalnya menggunakan `updateOrCreate()`.
 - `DatabaseSeeder` memanggil seeder domain.
+- Menu sidebar disimpan flat dengan `parent_id = null`.
+- Gunakan `section` untuk mengelompokkan menu dan membentuk separator sidebar.
+- `route_name` dan `url` boleh sama-sama kosong untuk menu placeholder yang belum
+  memiliki flow.
 - Jalankan schema dan data awal dengan:
 
 ```bash
@@ -165,11 +169,21 @@ dirender:
 5. token diambil dari cache per customer;
 6. request device customer yang sama dijalankan dengan HTTP pool;
 7. hasil singkat disimpan di cache per customer dan device;
-8. browser mengisi cell tanpa me-reload DataTable.
+8. snapshot teks terakhir disimpan pada tabel domain agar seluruh field dapat
+   dicari tanpa memanggil provider;
+9. browser mengisi cell tanpa me-reload DataTable.
 
 Konfigurasi jumlah concurrent request dan TTL posisi berada di
 `config/services.php`. Kegagalan satu device menghasilkan status unavailable dan
 tidak menggagalkan posisi device lain.
+
+Reverse geocoding alamat harus menggunakan service provider terpisah:
+
+- proses hanya koordinat row DataTable yang sedang terlihat;
+- cache hasil berdasarkan koordinat yang dibulatkan;
+- kegagalan reverse geocoding tidak menggagalkan data GPS;
+- ambil alamat dari field `display_name` response Nominatim;
+- tampilkan atribusi OpenStreetMap pada UI jika datanya bersumber dari OSM.
 
 Mapping status GPS fleet:
 

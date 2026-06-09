@@ -15,6 +15,7 @@ class FleetService
 {
     public function __construct(
         private readonly TotalKilatGpsService $gpsService,
+        private readonly NominatimReverseGeocodingService $reverseGeocodingService,
     ) {}
 
     /**
@@ -29,6 +30,11 @@ class FleetService
                 'customer_id',
                 'vehicle_name',
                 'device_name',
+                'latest_address',
+                'latest_mileage',
+                'latest_vehicle_status',
+                'latest_engine',
+                'latest_update',
                 'is_active',
                 'created_at',
             ]);
@@ -157,9 +163,25 @@ class FleetService
             foreach ($customerFleets as $fleet) {
                 $reference = $this->positionReference($fleet);
                 $position = $positions[$fleet->device_name] ?? null;
-                $result[$reference] = $position
-                    ? $this->formatLatestPosition($position)
-                    : $this->unavailablePosition();
+
+                if (! $position) {
+                    $result[$reference] = $this->unavailablePosition();
+
+                    continue;
+                }
+
+                $formattedPosition = $this->formatLatestPosition($position);
+                $result[$reference] = $formattedPosition;
+
+                DB::table('fleets')
+                    ->where('id', $fleet->id)
+                    ->update([
+                        'latest_address' => $formattedPosition['address']['text'],
+                        'latest_mileage' => $formattedPosition['mileage']['text'],
+                        'latest_vehicle_status' => $formattedPosition['vehicle_status']['text'],
+                        'latest_engine' => $formattedPosition['engine']['text'],
+                        'latest_update' => $formattedPosition['last_update']['text'],
+                    ]);
             }
         }
 
@@ -190,6 +212,7 @@ class FleetService
         $engineOn = $position['acc'] === 1;
         $latitude = $position['latitude'];
         $longitude = $position['longitude'];
+        $address = $this->reverseGeocodingService->execute($latitude, $longitude);
 
         return [
             'mileage' => [
@@ -206,12 +229,18 @@ class FleetService
             'last_update' => [
                 'text' => $this->formatIndonesianDateTime($position['datetime']),
             ],
+            'address' => [
+                'text' => $address !== '' ? $address : 'Unavailable',
+                'state' => $address !== '' ? null : 'error',
+            ],
             'map' => [
                 'url' => sprintf(
                     'https://maps.google.com/maps?q=%s,%s&z=16&output=embed',
                     rawurlencode((string) $latitude),
                     rawurlencode((string) $longitude),
                 ),
+                'latitude' => $latitude,
+                'longitude' => $longitude,
             ],
         ];
     }
@@ -241,7 +270,8 @@ class FleetService
             'vehicle_status' => ['text' => 'Unavailable', 'badge' => 'neutral'],
             'engine' => ['text' => 'Unavailable', 'badge' => 'neutral'],
             'last_update' => ['text' => 'Unavailable', 'state' => 'error'],
-            'map' => ['url' => null],
+            'address' => ['text' => 'Unavailable', 'state' => 'error'],
+            'map' => ['url' => null, 'latitude' => null, 'longitude' => null],
         ];
     }
 

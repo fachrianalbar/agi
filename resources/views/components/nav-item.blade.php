@@ -5,13 +5,14 @@
     'active' => false,
     'badge' => null,
     'target' => '_self',
-    'child' => false,
+    'disabled' => false,
 ])
 
 <a href="{{ $href }}"
    target="{{ $target }}"
    @if($target === '_blank') rel="noopener noreferrer" @endif
-   class="sidebar-nav-item @if($active) active @endif @if($child) sidebar-nav-child @endif">
+   @if($disabled) aria-disabled="true" tabindex="-1" @endif
+   class="sidebar-nav-item @if($active) active @endif @if($disabled) is-disabled @endif">
   <span class="sidebar-nav-icon">
     <x-menu-icon :name="$icon" />
   </span>

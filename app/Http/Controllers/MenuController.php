@@ -32,7 +32,6 @@ class MenuController extends Controller
                 'destination',
                 fn (Menu $menu) => view('pages.menus.columns.destination', compact('menu'))->render(),
             )
-            ->addColumn('parent_name', fn (Menu $menu) => $menu->parent?->name ?? '-')
             ->addColumn(
                 'status',
                 fn (Menu $menu) => view('pages.menus.columns.status', compact('menu'))->render(),
@@ -51,17 +50,10 @@ class MenuController extends Controller
                         ->orWhere('url', 'like', "%{$keyword}%");
                 });
             })
-            ->filterColumn('parent_name', function ($query, string $keyword): void {
-                $query->whereHas(
-                    'parent',
-                    fn ($query) => $query->where('name', 'like', "%{$keyword}%"),
-                );
-            })
             ->only([
                 'menu',
                 'section',
                 'destination',
-                'parent_name',
                 'sort_order',
                 'status',
                 'action',
@@ -74,13 +66,11 @@ class MenuController extends Controller
     {
         return view('pages.menus.create', [
             'menu' => new Menu([
-                'section' => 'Main Menu',
                 'icon' => 'circle',
                 'target' => '_self',
                 'sort_order' => 0,
                 'is_active' => true,
             ]),
-            'parentOptions' => $this->menuService->getParentOptions(),
             'icons' => Menu::ICONS,
         ]);
     }
@@ -98,7 +88,6 @@ class MenuController extends Controller
     {
         return view('pages.menus.edit', [
             'menu' => $menu,
-            'parentOptions' => $this->menuService->getParentOptions($menu),
             'icons' => Menu::ICONS,
         ]);
     }

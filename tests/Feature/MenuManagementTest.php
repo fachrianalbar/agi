@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Menu;
+use Database\Seeders\FleetMenuSeeder;
 use Database\Seeders\MenuSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -56,8 +57,51 @@ class MenuManagementTest extends TestCase
             ->assertJsonMissingPath('data.0.id');
     }
 
+    public function test_fleet_menu_seeder_creates_flat_section_menus_idempotently(): void
+    {
+        Menu::query()->create([
+            'name' => 'Fleets',
+            'section' => 'Administrator',
+            'icon' => 'activity',
+            'route_name' => 'fleets.index',
+            'active_pattern' => 'fleets.*',
+            'target' => '_self',
+            'sort_order' => 15,
+            'is_active' => true,
+        ]);
+
+        $this->seed(FleetMenuSeeder::class);
+        $this->seed(FleetMenuSeeder::class);
+
+        $this->assertDatabaseHas('menus', [
+            'parent_id' => null,
+            'name' => 'All Fleet',
+            'section' => 'Fleet',
+            'icon' => 'truck',
+            'route_name' => 'fleets.index',
+        ]);
+        $this->assertDatabaseHas('menus', [
+            'parent_id' => null,
+            'name' => 'Non Active Fleet',
+            'section' => 'Fleet',
+            'icon' => 'inactive',
+            'route_name' => null,
+            'url' => null,
+        ]);
+        $this->assertDatabaseMissing('menus', [
+            'parent_id' => null,
+            'name' => 'Fleet',
+        ]);
+        $this->assertDatabaseCount('menus', 2);
+    }
+
     public function test_menu_can_be_created_with_a_ulid(): void
     {
+        $this->get(route('menus.create'))
+            ->assertOk()
+            ->assertSee('Displayed uppercase as a sidebar separator')
+            ->assertDontSee('Parent Menu');
+
         $response = $this->post(route('menus.store'), [
             'name' => 'Documentation',
             'section' => 'Workspace',
@@ -111,7 +155,7 @@ class MenuManagementTest extends TestCase
         $this->assertDatabaseMissing('menus', ['id' => $menu->id]);
     }
 
-    public function test_child_menu_must_use_a_top_level_parent(): void
+    public function test_menu_can_be_created_as_a_flat_placeholder(): void
     {
         $parent = Menu::query()->create([
             'name' => 'Parent',
@@ -122,30 +166,24 @@ class MenuManagementTest extends TestCase
             'sort_order' => 10,
             'is_active' => true,
         ]);
-        $child = Menu::query()->create([
-            'parent_id' => $parent->id,
-            'name' => 'Child',
-            'section' => 'Main Menu',
-            'icon' => 'circle',
-            'url' => '/child',
-            'target' => '_self',
-            'sort_order' => 10,
-            'is_active' => true,
-        ]);
 
-        $this->from(route('menus.create'))
-            ->post(route('menus.store'), [
-                'parent_id' => $child->id,
-                'name' => 'Grandchild',
-                'section' => 'Main Menu',
-                'icon' => 'circle',
-                'url' => '/grandchild',
-                'target' => '_self',
-                'sort_order' => 10,
-                'is_active' => '1',
-            ])
-            ->assertRedirect(route('menus.create'))
-            ->assertSessionHasErrors('parent_id');
+        $this->post(route('menus.store'), [
+            'parent_id' => $parent->id,
+            'name' => 'Coming Soon',
+            'section' => 'Fleet',
+            'icon' => 'inactive',
+            'target' => '_self',
+            'sort_order' => 20,
+            'is_active' => '1',
+        ])->assertRedirect(route('menus.index'));
+
+        $this->assertDatabaseHas('menus', [
+            'parent_id' => null,
+            'name' => 'Coming Soon',
+            'section' => 'Fleet',
+            'route_name' => null,
+            'url' => null,
+        ]);
     }
 
     public function test_route_name_must_be_registered(): void

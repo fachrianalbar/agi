@@ -133,6 +133,51 @@ function closeModal(modal) {
     });
 }
 
+function setModalText(modal, selector, value, fallback = 'Unavailable') {
+    const element = modal?.querySelector(selector);
+
+    if (!element) {
+        return;
+    }
+
+    element.textContent = value || fallback;
+}
+
+function setModalBadge(modal, selector, value, variant = 'neutral') {
+    const element = modal?.querySelector(selector);
+
+    if (!element) {
+        return;
+    }
+
+    element.textContent = value || 'Unavailable';
+    element.classList.remove(...badgeClasses);
+    element.classList.add('badge', `badge-${variant || 'neutral'}`);
+}
+
+function formatMapCoordinate(latitude, longitude) {
+    if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) {
+        return 'Unavailable';
+    }
+
+    return `${latitude}, ${longitude}`;
+}
+
+function buildMapPayload(record, value) {
+    return {
+        url: value.url,
+        latitude: value.latitude ?? null,
+        longitude: value.longitude ?? null,
+        address: record?.address?.text || null,
+        mileage: record?.mileage?.text || null,
+        vehicleStatus: record?.vehicle_status?.text || null,
+        vehicleStatusBadge: record?.vehicle_status?.badge || 'neutral',
+        engine: record?.engine?.text || null,
+        engineBadge: record?.engine?.badge || 'neutral',
+        lastUpdate: record?.last_update?.text || null,
+    };
+}
+
 function initializeModals(page) {
     page.querySelectorAll('[data-modal-target]').forEach((trigger) => {
         trigger.addEventListener('click', () => {
@@ -165,23 +210,31 @@ function initializeMapModals(page) {
     page.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-map-modal-target]');
 
-        if (!trigger || trigger.disabled || !trigger.dataset.mapUrl) {
+        if (!trigger || trigger.disabled) {
             return;
         }
 
         const modal = document.getElementById(trigger.dataset.mapModalTarget);
         const frame = modal?.querySelector('[data-map-frame]');
-        const vehicleName = modal?.querySelector('[data-map-vehicle-name]');
+        const payload = parseJson(trigger.dataset.mapPayload, {});
+        const mapUrl = payload.url || trigger.dataset.mapUrl;
 
-        if (!modal || !frame) {
+        if (!modal || !frame || !mapUrl) {
             return;
         }
 
-        frame.src = trigger.dataset.mapUrl;
-
-        if (vehicleName) {
-            vehicleName.textContent = trigger.dataset.mapTitle || '';
-        }
+        frame.src = mapUrl;
+        setModalText(modal, '[data-map-vehicle-name]', trigger.dataset.mapTitle, 'Vehicle');
+        setModalText(modal, '[data-map-address]', payload.address, 'Address unavailable');
+        setModalText(modal, '[data-map-mileage]', payload.mileage);
+        setModalText(modal, '[data-map-last-update]', payload.lastUpdate);
+        setModalText(
+            modal,
+            '[data-map-coordinates]',
+            formatMapCoordinate(payload.latitude, payload.longitude),
+        );
+        setModalBadge(modal, '[data-map-status]', payload.vehicleStatus, payload.vehicleStatusBadge);
+        setModalBadge(modal, '[data-map-engine]', payload.engine ? `Engine ${payload.engine}` : null, payload.engineBadge);
 
         openModal(modal);
     });
@@ -258,6 +311,7 @@ function setEnrichmentUnavailable(tableElement) {
     tableElement.querySelectorAll('[data-enrichment-map]').forEach((button) => {
         button.disabled = true;
         button.dataset.mapUrl = '';
+        delete button.dataset.mapPayload;
         button.setAttribute('aria-disabled', 'true');
         button.setAttribute('title', 'Position unavailable');
         button.classList.add('is-disabled');
@@ -315,6 +369,7 @@ function applyTableEnrichment(tableElement, data) {
         if (!value?.url) {
             button.disabled = true;
             button.dataset.mapUrl = '';
+            delete button.dataset.mapPayload;
             button.setAttribute('aria-disabled', 'true');
             button.setAttribute('title', 'Position unavailable');
             button.classList.add('is-disabled');
@@ -324,6 +379,7 @@ function applyTableEnrichment(tableElement, data) {
 
         button.disabled = false;
         button.dataset.mapUrl = value.url;
+        button.dataset.mapPayload = JSON.stringify(buildMapPayload(record, value));
         button.setAttribute('aria-disabled', 'false');
         button.setAttribute('title', 'View last position on map');
         button.classList.remove('is-disabled');

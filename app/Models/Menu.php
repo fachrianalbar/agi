@@ -16,11 +16,14 @@ class Menu extends Model
         'activity',
         'agents',
         'analytics',
+        'check',
         'circle',
         'dashboard',
+        'inactive',
         'link',
         'menu',
         'settings',
+        'truck',
     ];
 
     protected $fillable = [

@@ -63,6 +63,12 @@
   if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileSidebar);
   if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeMobileSidebar);
 
+  document.querySelectorAll('.sidebar-nav-item.is-disabled').forEach(function (item) {
+    item.addEventListener('click', function (event) {
+      event.preventDefault();
+    });
+  });
+
   // ----- Dropdowns -----
   if (userMenuBtn) {
     userMenuBtn.addEventListener('click', function () {

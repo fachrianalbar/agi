@@ -55,15 +55,22 @@
               <th data-column="vehicle_name">Vehicle Name</th>
               <th data-column="device_name">Device Name</th>
               <th data-column="customer_name" data-orderable="false">Customer</th>
-              <th data-column="mileage" data-orderable="false" data-searchable="false">Mileage</th>
-              <th data-column="vehicle_status" data-orderable="false" data-searchable="false" data-align="center">Vehicle Status</th>
-              <th data-column="engine" data-orderable="false" data-searchable="false" data-align="center">Engine</th>
-              <th data-column="last_update" data-orderable="false" data-searchable="false">Last Update</th>
+              <th data-column="address" data-orderable="false">Address</th>
+              <th data-column="mileage" data-orderable="false">Mileage</th>
+              <th data-column="vehicle_status" data-orderable="false" data-align="center">Vehicle Status</th>
+              <th data-column="engine" data-orderable="false" data-align="center">Engine</th>
+              <th data-column="last_update" data-orderable="false">Last Update</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
+      <p class="table-attribution">
+        Address data ©
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">
+          OpenStreetMap contributors
+        </a>
+      </p>
     </div>
   </div>
 
@@ -106,19 +113,47 @@
     </form>
   </x-modal>
 
-  <x-modal id="fleetMapModal" title="Last Vehicle Position" size="lg">
-    <div class="map-modal-header">
-      <span data-map-vehicle-name></span>
-    </div>
-    <div class="map-modal-body">
-      <iframe
-        class="map-modal-frame"
-        data-map-frame
-        src="about:blank"
-        title="Vehicle location map"
-        loading="lazy"
-        referrerpolicy="no-referrer-when-downgrade"
-      ></iframe>
+  <x-modal id="fleetMapModal" title="Vehicle Location" size="lg">
+    <div class="map-modal-shell">
+      <div class="map-modal-hero">
+        <div class="map-modal-title-block">
+          <span class="map-modal-eyebrow">Last Vehicle Position</span>
+          <h3 class="map-modal-vehicle-name" data-map-vehicle-name>Vehicle</h3>
+          <p class="map-modal-address" data-map-address>Address unavailable</p>
+        </div>
+        <div class="map-modal-status-list">
+          <span class="badge badge-neutral" data-map-status>Unknown</span>
+          <span class="badge badge-neutral" data-map-engine>Engine unknown</span>
+        </div>
+      </div>
+
+      <div class="map-modal-content">
+        <div class="map-modal-frame-card">
+          <iframe
+            class="map-modal-frame"
+            data-map-frame
+            src="about:blank"
+            title="Vehicle location map"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </div>
+
+        <aside class="map-modal-details" aria-label="Vehicle position details">
+          <div class="map-detail-card">
+            <span class="map-detail-label">Last Update</span>
+            <strong class="map-detail-value" data-map-last-update>Unavailable</strong>
+          </div>
+          <div class="map-detail-card">
+            <span class="map-detail-label">Mileage</span>
+            <strong class="map-detail-value" data-map-mileage>Unavailable</strong>
+          </div>
+          <div class="map-detail-card">
+            <span class="map-detail-label">Coordinate</span>
+            <strong class="map-detail-value map-detail-coordinate" data-map-coordinates>Unavailable</strong>
+          </div>
+        </aside>
+      </div>
     </div>
   </x-modal>
 </div>

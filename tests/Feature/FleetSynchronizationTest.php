@@ -25,10 +25,66 @@ class FleetSynchronizationTest extends TestCase
             ->assertOk()
             ->assertSee('Synchronize Fleets')
             ->assertSee('fleetMapModal')
+            ->assertSee('data-map-address', false)
             ->assertDontSee('Fleet Status')
+            ->assertSee('Address')
+            ->assertSee('OpenStreetMap contributors')
             ->assertSee($customer->name)
             ->assertSee($customer->username)
             ->assertDontSee($customer->password);
+    }
+
+    public function test_fleet_datatable_can_search_every_displayed_field(): void
+    {
+        $customer = $this->createCustomer();
+        $otherCustomer = $this->createCustomer([
+            'name' => 'Other Customer',
+            'username' => 'other',
+            'email' => 'other@example.com',
+        ]);
+        $fleet = $this->createFleet($customer, 'B 1071 DFP', '42976836');
+        $this->createFleet($otherCustomer, 'B 1075 DFP', '42995737');
+
+        $fleet->update([
+            'latest_address' => 'Jalan Gajah Mada, Samarinda, Indonesia',
+            'latest_mileage' => '39,727.86 km',
+            'latest_vehicle_status' => 'Stop',
+            'latest_engine' => 'Off',
+            'latest_update' => '09 Juni 2026 22:44:31',
+        ]);
+
+        foreach ([
+            'B 1071 DFP',
+            '42976836',
+            'AGI Customer',
+            'Gajah Mada',
+            '39,727.86 km',
+            'Stop',
+            'Off',
+            '09 Juni 2026',
+        ] as $keyword) {
+            $response = $this->getJson(route('fleets.data', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'search' => ['value' => $keyword, 'regex' => 'false'],
+                'columns' => [
+                    [
+                        'data' => 'vehicle_name',
+                        'name' => 'vehicle_name',
+                        'searchable' => 'true',
+                        'orderable' => 'true',
+                        'search' => ['value' => '', 'regex' => 'false'],
+                    ],
+                ],
+            ]));
+
+            $response
+                ->assertOk()
+                ->assertJsonPath('recordsFiltered', 1)
+                ->assertSee('B 1071 DFP')
+                ->assertDontSee('B 1075 DFP');
+        }
     }
 
     public function test_fleets_are_upserted_and_access_token_is_cached_per_customer(): void
@@ -241,9 +297,21 @@ class FleetSynchronizationTest extends TestCase
         $secondFleet = $this->createFleet($customer, 'B 1071 DFP', '42976836');
         $tokenRequests = 0;
         $positionRequests = 0;
+        $addressRequests = 0;
 
-        Http::fake(function (Request $request) use (&$tokenRequests, &$positionRequests) {
+        Http::fake(function (Request $request) use (&$tokenRequests, &$positionRequests, &$addressRequests) {
             $query = $this->queryParameters($request);
+            $host = parse_url($request->url(), PHP_URL_HOST);
+
+            if ($host === 'nominatim.openstreetmap.org') {
+                $addressRequests++;
+                $this->assertSame('-0.47737', (string) $query['lat']);
+                $this->assertSame('117.137335', (string) $query['lon']);
+
+                return Http::response([
+                    'display_name' => 'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+                ]);
+            }
 
             if (str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/token')) {
                 $tokenRequests++;
@@ -288,9 +356,15 @@ class FleetSynchronizationTest extends TestCase
             ->assertJsonPath("data.{$firstReference}.engine.text", 'Off')
             ->assertJsonPath("data.{$firstReference}.last_update.text", '09 Juni 2026 20:35:07')
             ->assertJsonPath(
+                "data.{$firstReference}.address.text",
+                'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+            )
+            ->assertJsonPath(
                 "data.{$firstReference}.map.url",
                 'https://maps.google.com/maps?q=-0.47737,117.137335&z=16&output=embed',
             )
+            ->assertJsonPath("data.{$firstReference}.map.latitude", -0.47737)
+            ->assertJsonPath("data.{$firstReference}.map.longitude", 117.137335)
             ->assertDontSee($firstFleet->id);
 
         $this->postJson(route('fleets.latest-positions'), compact('devices'))
@@ -298,6 +372,15 @@ class FleetSynchronizationTest extends TestCase
 
         $this->assertSame(1, $tokenRequests);
         $this->assertSame(2, $positionRequests);
+        $this->assertSame(1, $addressRequests);
+        $this->assertDatabaseHas('fleets', [
+            'id' => $firstFleet->id,
+            'latest_address' => 'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+            'latest_mileage' => '10,137.443 km',
+            'latest_vehicle_status' => 'Stop',
+            'latest_engine' => 'Off',
+            'latest_update' => '09 Juni 2026 20:35:07',
+        ]);
     }
 
     public function test_latest_positions_use_separate_tokens_for_each_customer(): void

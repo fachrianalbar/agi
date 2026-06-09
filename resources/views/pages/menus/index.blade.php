@@ -16,7 +16,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-header-title">Menu Management</h1>
-        <p class="page-header-subtitle">Configure the sidebar navigation stored in the database</p>
+        <p class="page-header-subtitle">Configure flat sidebar menus grouped by section</p>
       </div>
       <a href="{{ route('menus.create') }}" class="btn btn-primary btn-sm">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -37,7 +37,7 @@
           class="table js-data-table"
           id="menuTable"
           data-url="{{ route('menus.data') }}"
-          data-order='[[3,"asc"],[6,"asc"],[2,"asc"]]'
+          data-order='[[3,"asc"],[5,"asc"],[2,"asc"]]'
           data-plural-label="menus"
         >
           <thead>
@@ -47,7 +47,6 @@
               <th data-column="menu" data-name="name">Menu</th>
               <th data-column="section">Section</th>
               <th data-column="destination" data-orderable="false">Destination</th>
-              <th data-column="parent_name" data-orderable="false">Parent</th>
               <th data-column="sort_order">Order</th>
               <th data-column="status" data-name="is_active" data-align="center">Status</th>
             </tr>

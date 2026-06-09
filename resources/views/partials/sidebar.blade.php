@@ -24,23 +24,12 @@
         <x-nav-item
           :href="$menu->destinationUrl()"
           :icon="$menu->icon"
-          :active="$menu->isCurrent() || $menu->children->contains(fn ($child) => $child->isCurrent())"
+          :active="$menu->isCurrent()"
           :target="$menu->target"
+          :disabled="$menu->destinationUrl() === '#'"
         >
           {{ $menu->name }}
         </x-nav-item>
-
-        @foreach($menu->children as $child)
-          <x-nav-item
-            :href="$child->destinationUrl()"
-            :icon="$child->icon"
-            :active="$child->isCurrent()"
-            :target="$child->target"
-            :child="true"
-          >
-            {{ $child->name }}
-          </x-nav-item>
-        @endforeach
       @endforeach
     @empty
       <div class="sidebar-empty">

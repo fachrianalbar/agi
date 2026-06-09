@@ -1,5 +1,4 @@
 @php
-  $selectedParent = old('parent_id', $menu->parent_id);
   $selectedIcon = old('icon', $menu->icon);
   $selectedTarget = old('target', $menu->target ?: '_self');
   $isActive = old('is_active', $menu->exists ? $menu->is_active : true);
@@ -14,22 +13,9 @@
 
   <div class="form-group">
     <label for="section" class="form-label">Section</label>
-    <input id="section" type="text" name="section" class="form-input @error('section') form-input-error @enderror" value="{{ old('section', $menu->section) }}" placeholder="Main Menu" maxlength="100" required>
+    <input id="section" type="text" name="section" class="form-input @error('section') form-input-error @enderror" value="{{ old('section', $menu->section) }}" placeholder="e.g. Fleet or Administrator" maxlength="100" required>
+    <div class="form-hint">Displayed uppercase as a sidebar separator with a horizontal line.</div>
     @error('section') <div class="form-error">{{ $message }}</div> @enderror
-  </div>
-
-  <div class="form-group">
-    <label for="parent_id" class="form-label">Parent Menu</label>
-    <select id="parent_id" name="parent_id" class="form-select js-select2 @error('parent_id') form-input-error @enderror" data-placeholder="None (top-level menu)" data-allow-clear="true">
-      <option value="">None (top-level menu)</option>
-      @foreach($parentOptions as $parent)
-        <option value="{{ $parent->id }}" @selected($selectedParent === $parent->id)>
-          {{ $parent->section }} / {{ $parent->name }}
-        </option>
-      @endforeach
-    </select>
-    <div class="form-hint">Only one child level is supported.</div>
-    @error('parent_id') <div class="form-error">{{ $message }}</div> @enderror
   </div>
 
   <div class="form-group">
@@ -45,14 +31,14 @@
   <div class="form-group">
     <label for="route_name" class="form-label">Route Name</label>
     <input id="route_name" type="text" name="route_name" class="form-input @error('route_name') form-input-error @enderror" value="{{ old('route_name', $menu->route_name) }}" placeholder="e.g. dashboard or menus.index" maxlength="150">
-    <div class="form-hint">Preferred for internal Laravel pages.</div>
+    <div class="form-hint">Preferred for internal Laravel pages. Leave empty for a placeholder menu.</div>
     @error('route_name') <div class="form-error">{{ $message }}</div> @enderror
   </div>
 
   <div class="form-group">
     <label for="url" class="form-label">Custom URL</label>
     <input id="url" type="text" name="url" class="form-input @error('url') form-input-error @enderror" value="{{ old('url', $menu->url) }}" placeholder="/documentation or https://example.com" maxlength="2048">
-    <div class="form-hint">Required only when Route Name is empty.</div>
+    <div class="form-hint">Optional. If Route Name and URL are empty, the menu is shown as a disabled placeholder.</div>
     @error('url') <div class="form-error">{{ $message }}</div> @enderror
   </div>
 

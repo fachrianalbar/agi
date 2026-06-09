@@ -18,6 +18,11 @@ class Fleet extends Model
         'customer_id',
         'vehicle_name',
         'device_name',
+        'latest_address',
+        'latest_mileage',
+        'latest_vehicle_status',
+        'latest_engine',
+        'latest_update',
         'is_active',
     ];
 

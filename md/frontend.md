@@ -632,6 +632,10 @@ Runtime `crud.js` akan:
 - menampilkan `Unavailable` tanpa menggagalkan DataTable;
 - menjalankan proses kembali pada pagination, search, order, dan page length.
 
+Field enrichment berupa alamat panjang menggunakan class global
+`enrichment-address` agar dapat wrap. Jika alamat menggunakan data OpenStreetMap,
+letakkan atribusi `.table-attribution` di bawah tabel.
+
 Reference harus berupa nilai opaque/HMAC. Jangan menaruh ULID dalam atribut DOM
 atau payload enrichment.
 
@@ -658,6 +662,18 @@ atau `neutral`. Action tanpa URL tetap disabled. Action peta harus membuka
 `<x-modal size="lg">` yang berisi iframe `[data-map-frame]`, bukan tab baru.
 Gunakan URL Google Maps `output=embed` agar tidak memerlukan API key. Runtime
 global mengosongkan `src` iframe saat modal ditutup.
+
+### Sidebar Section
+
+Kelompok domain utama dipisahkan menggunakan field `section`. Judul section
+ditampilkan uppercase dengan garis horizontal, misalnya `FLEET`. Menu di
+dalamnya tetap top-level dan tidak perlu dibuat parent-child bila hanya
+berfungsi sebagai pengelompokan visual.
+
+Menu placeholder menggunakan `aria-disabled="true"` dan tidak melakukan
+navigasi. Ikon berasal dari `<x-menu-icon>` dan harus menggambarkan fungsi menu.
+Struktur parent-child hanya digunakan bila memang ada kebutuhan expand/collapse
+untuk workflow bertingkat.
 
 ## 20. Quality Gate
 

@@ -40,6 +40,27 @@ class FleetController extends Controller
     public function data(): JsonResponse
     {
         return DataTables::eloquent($this->fleetService->getDataTableQuery())
+            ->filter(function (Builder $query): void {
+                $keyword = trim((string) request()->input('search.value'));
+
+                if ($keyword === '') {
+                    return;
+                }
+
+                $query->where(function (Builder $query) use ($keyword): void {
+                    $query
+                        ->where('fleets.vehicle_name', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.device_name', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.latest_address', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.latest_mileage', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.latest_vehicle_status', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.latest_engine', 'like', "%{$keyword}%")
+                        ->orWhere('fleets.latest_update', 'like', "%{$keyword}%")
+                        ->orWhereHas('customer', function (Builder $query) use ($keyword): void {
+                            $query->where('name', 'like', "%{$keyword}%");
+                        });
+                });
+            })
             ->addColumn(
                 'vehicle_name',
                 fn (Fleet $fleet) => view('pages.fleets.columns.vehicle_name', compact('fleet'))->render(),
@@ -51,6 +72,10 @@ class FleetController extends Controller
             ->addColumn(
                 'mileage',
                 fn (Fleet $fleet) => $this->positionCell($fleet, 'mileage'),
+            )
+            ->addColumn(
+                'address',
+                fn (Fleet $fleet) => $this->positionCell($fleet, 'address'),
             )
             ->addColumn(
                 'vehicle_status',
@@ -71,16 +96,12 @@ class FleetController extends Controller
                     'positionReference' => $this->fleetService->positionReference($fleet),
                 ])->render(),
             )
-            ->filterColumn('customer_name', function (Builder $query, string $keyword): void {
-                $query->whereHas('customer', function (Builder $q) use ($keyword): void {
-                    $q->where('name', 'like', "%{$keyword}%");
-                });
-            })
             ->only([
                 'action',
                 'vehicle_name',
                 'device_name',
                 'customer_name',
+                'address',
                 'mileage',
                 'vehicle_status',
                 'engine',
@@ -89,6 +110,7 @@ class FleetController extends Controller
             ->rawColumns([
                 'action',
                 'vehicle_name',
+                'address',
                 'mileage',
                 'vehicle_status',
                 'engine',
