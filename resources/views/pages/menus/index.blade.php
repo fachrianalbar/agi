@@ -37,13 +37,13 @@
         <table class="table" id="menuTable">
           <thead>
             <tr>
+              <th></th>
               <th>Menu</th>
               <th>Section</th>
               <th>Destination</th>
               <th>Parent</th>
               <th>Order</th>
               <th>Status</th>
-              <th></th>
             </tr>
           </thead>
           <tbody></tbody>

@@ -61,12 +61,33 @@ resources/
 - Blade hanya menyediakan header tabel dan endpoint AJAX.
 - Query tetap berada di Service atau query object.
 - Controller membentuk response Yajra dan partial Blade menangani kolom HTML.
+- **Kolom action WAJIB berada di posisi pertama (kolom paling kiri).** Ini berlaku untuk semua tabel CRUD di seluruh aplikasi.
 - Kolom action tidak boleh searchable atau orderable.
 - Primary key internal seperti ULID tidak ditampilkan kecuali memang dibutuhkan user.
 - Setelah mutasi AJAX, reload tabel tanpa mengubah halaman aktif:
 
 ```js
 table.ajax.reload(null, false);
+```
+
+### Struktur Kolom Standar
+
+```text
+Kolom 0: Action (edit, delete, toggle — tidak searchable, tidak orderable)
+Kolom 1: Nama / Label utama (searchable, orderable)
+Kolom 2+: Data pendukung
+Kolom N: Status (opsional, di urutan terakhir jika ada)
+```
+
+### Contoh DataTable Columns Definition
+
+```js
+columns: [
+    { data: 'action', name: 'action', orderable: false, searchable: false },  // WAJIB index 0
+    { data: 'name', name: 'name' },
+    { data: 'type', name: 'type' },
+    { data: 'status', name: 'status' },
+],
 ```
 
 ## 7. SweetAlert

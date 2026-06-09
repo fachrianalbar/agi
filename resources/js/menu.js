@@ -58,19 +58,19 @@ function initializeMenuTable(page) {
         serverSide: true,
         ajax: page.dataset.tableUrl,
         order: [
+            [2, 'asc'],
+            [5, 'asc'],
             [1, 'asc'],
-            [4, 'asc'],
-            [0, 'asc'],
         ],
         pageLength: 10,
         columns: [
+            { data: 'action', name: 'action', orderable: false, searchable: false },
             { data: 'menu', name: 'name' },
             { data: 'section', name: 'section' },
             { data: 'destination', name: 'destination', orderable: false },
             { data: 'parent_name', name: 'parent_name', orderable: false },
             { data: 'sort_order', name: 'sort_order' },
             { data: 'status', name: 'is_active' },
-            { data: 'action', name: 'action', orderable: false, searchable: false },
         ],
         language: {
             search: '',
