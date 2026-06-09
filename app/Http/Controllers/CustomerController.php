@@ -6,6 +6,12 @@ use App\Http\Requests\Customer\StoreCustomerRequest;
 use App\Http\Requests\Customer\UpdateCustomerRequest;
 use App\Models\Customer;
 use App\Services\CustomerService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Yajra\DataTables\Facades\DataTables;
 
 class CustomerController extends Controller
 {
@@ -16,11 +22,47 @@ class CustomerController extends Controller
     /**
      * Display a listing of customers.
      */
-    public function index()
+    public function index(): View
     {
-        $customers = $this->customerService->getPaginated();
+        return view('pages.customers.index');
+    }
 
-        return view('pages.customers.index', compact('customers'));
+    /**
+     * Return DataTables JSON for customer listing.
+     */
+    public function data(): JsonResponse
+    {
+        return DataTables::eloquent($this->customerService->getDataTableQuery())
+            ->addColumn(
+                'name',
+                fn (Customer $customer) => view('pages.customers.columns.name', compact('customer'))->render(),
+            )
+            ->addColumn(
+                'status',
+                fn (Customer $customer) => view('pages.customers.columns.status', compact('customer'))->render(),
+            )
+            ->addColumn(
+                'action',
+                fn (Customer $customer) => view('pages.customers.columns.action', compact('customer'))->render(),
+            )
+            ->addColumn('location', fn (Customer $customer) => collect([$customer->city, $customer->country])->filter()->join(', ') ?: '—')
+            ->filterColumn('location', function (Builder $query, string $keyword): void {
+                $query->where(function (Builder $q) use ($keyword): void {
+                    $q->where('city', 'like', "%{$keyword}%")
+                      ->orWhere('country', 'like', "%{$keyword}%");
+                });
+            })
+            ->only([
+                'action',
+                'name',
+                'username',
+                'email',
+                'phone',
+                'location',
+                'status',
+            ])
+            ->rawColumns(['action', 'name', 'status'])
+            ->toJson();
     }
 
     /**
@@ -66,10 +108,16 @@ class CustomerController extends Controller
     /**
      * Remove the specified customer.
      */
-    public function destroy(Customer $customer)
+    public function destroy(Request $request, Customer $customer): RedirectResponse|JsonResponse
     {
         $name = $customer->name;
         $this->customerService->delete($customer);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => "Customer \"{$name}\" deleted successfully.",
+            ]);
+        }
 
         return redirect()
             ->route('customers.index')

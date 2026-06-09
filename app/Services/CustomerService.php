@@ -4,11 +4,30 @@ namespace App\Services;
 
 use App\Models\Customer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class CustomerService
 {
+    /**
+     * Get the base query for DataTables server-side processing.
+     */
+    public function getDataTableQuery(): Builder
+    {
+        return Customer::query()->select([
+            'id',
+            'name',
+            'username',
+            'email',
+            'phone',
+            'city',
+            'country',
+            'is_active',
+            'created_at',
+        ]);
+    }
+
     /**
      * Get paginated list of active customers.
      */

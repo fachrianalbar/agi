@@ -36,7 +36,8 @@ Route::get('menus/data', [MenuController::class, 'data'])->name('menus.data');
 Route::resource('menus', MenuController::class)->except('show');
 
 // Customer management
-Route::resource('customers', \App\Http\Controllers\CustomerController::class);
+Route::get('customers/data', [\App\Http\Controllers\CustomerController::class, 'data'])->name('customers.data');
+Route::resource('customers', \App\Http\Controllers\CustomerController::class)->except('show');
 
 // Logout (placeholder)
 Route::post('/logout', function () {

@@ -33,7 +33,7 @@
         </div>
       </div>
 
-      <div class="menu-table-container">
+      <div class="data-table-container">
         <table class="table" id="menuTable">
           <thead>
             <tr>
