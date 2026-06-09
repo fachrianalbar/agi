@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'total_kilat_gps' => [
+        'base_url' => env('TOTAL_KILAT_GPS_BASE_URL', 'https://api.totalkilatgps.com'),
+        'grant_type' => env('TOTAL_KILAT_GPS_GRANT_TYPE', 'totalkilatgps'),
+        'connect_timeout' => (int) env('TOTAL_KILAT_GPS_CONNECT_TIMEOUT', 5),
+        'timeout' => (int) env('TOTAL_KILAT_GPS_TIMEOUT', 20),
+    ],
+
 ];

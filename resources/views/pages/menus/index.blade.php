@@ -37,18 +37,19 @@
           class="table js-data-table"
           id="menuTable"
           data-url="{{ route('menus.data') }}"
-          data-order='[[2,"asc"],[5,"asc"],[1,"asc"]]'
+          data-order='[[3,"asc"],[6,"asc"],[2,"asc"]]'
           data-plural-label="menus"
         >
           <thead>
             <tr>
+              <th data-column="row_number" data-orderable="false" data-searchable="false">No</th>
               <th data-column="action" data-orderable="false" data-searchable="false"></th>
               <th data-column="menu" data-name="name">Menu</th>
               <th data-column="section">Section</th>
               <th data-column="destination" data-orderable="false">Destination</th>
               <th data-column="parent_name" data-orderable="false">Parent</th>
               <th data-column="sort_order">Order</th>
-              <th data-column="status" data-name="is_active">Status</th>
+              <th data-column="status" data-name="is_active" data-align="center">Status</th>
             </tr>
           </thead>
           <tbody></tbody>

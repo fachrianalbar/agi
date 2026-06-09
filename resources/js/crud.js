@@ -38,19 +38,24 @@ function parseBoolean(value, fallback = true) {
 }
 
 function showFlashMessage(page) {
-    const message = page?.dataset.successMessage || page?.dataset.infoMessage;
+    const message = page?.dataset.successMessage
+        || page?.dataset.infoMessage
+        || page?.dataset.errorMessage;
 
     if (!message) {
         return;
     }
 
+    const isError = Boolean(page.dataset.errorMessage);
+    const isSuccess = Boolean(page.dataset.successMessage);
+
     Swal.fire({
         ...swalTheme,
-        icon: page.dataset.successMessage ? 'success' : 'info',
-        title: page.dataset.successMessage ? 'Success' : 'Information',
+        icon: isError ? 'error' : (isSuccess ? 'success' : 'info'),
+        title: isError ? 'Process failed' : (isSuccess ? 'Success' : 'Information'),
         text: message,
-        timer: 2200,
-        showConfirmButton: false,
+        timer: isError ? undefined : 2200,
+        showConfirmButton: isError,
     });
 }
 
@@ -71,12 +76,76 @@ function initializeSelect2() {
 }
 
 function getColumns(tableElement) {
-    return Array.from(tableElement.querySelectorAll('thead th')).map((header) => ({
-        data: header.dataset.column,
-        name: header.dataset.name || header.dataset.column,
-        orderable: parseBoolean(header.dataset.orderable),
-        searchable: parseBoolean(header.dataset.searchable),
-    }));
+    return Array.from(tableElement.querySelectorAll('thead th')).map((header) => {
+        if (header.dataset.column === 'row_number') {
+            return {
+                data: null,
+                name: '',
+                orderable: false,
+                searchable: false,
+                className: 'table-cell-center table-cell-number',
+                render: (_data, _type, _row, meta) => (
+                    meta.settings._iDisplayStart + meta.row + 1
+                ),
+            };
+        }
+
+        return {
+            data: header.dataset.column,
+            name: header.dataset.name || header.dataset.column,
+            orderable: parseBoolean(header.dataset.orderable),
+            searchable: parseBoolean(header.dataset.searchable),
+            className: header.dataset.align ? `table-cell-${header.dataset.align}` : '',
+        };
+    });
+}
+
+function openModal(modal) {
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(modal) {
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function initializeModals(page) {
+    page.querySelectorAll('[data-modal-target]').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            openModal(document.getElementById(trigger.dataset.modalTarget));
+        });
+    });
+
+    page.querySelectorAll('[data-modal-close]').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            closeModal(trigger.closest('[data-modal]'));
+        });
+    });
+
+    page.querySelectorAll('[data-modal]').forEach((modal) => {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal(modal);
+            }
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeModal(page.querySelector('[data-modal].show'));
+        }
+    });
 }
 
 async function deleteRecord(button, page, table) {
@@ -107,7 +176,7 @@ async function deleteRecord(button, page, table) {
                 'X-Requested-With': 'XMLHttpRequest',
             },
         });
-        const payload = await response.json();
+        const payload = await response.json().catch(() => ({}));
 
         if (!response.ok) {
             throw new Error(payload.message || `The ${recordLabel} could not be deleted.`);
@@ -159,6 +228,73 @@ function initializeDataTable(tableElement, page) {
             deleteRecord(button, page, table);
         }
     });
+
+    return table;
+}
+
+function firstValidationMessage(errors) {
+    if (!errors || typeof errors !== 'object') {
+        return null;
+    }
+
+    const messages = Object.values(errors).flat();
+
+    return messages.find((message) => typeof message === 'string') || null;
+}
+
+async function submitAsyncForm(form, page, tables) {
+    const submitButton = form.querySelector('[type="submit"]');
+    const originalText = submitButton?.textContent;
+
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = submitButton.dataset.loadingText || 'Processing...';
+    }
+
+    try {
+        const response = await fetch(form.action, {
+            method: form.method || 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': page.dataset.csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: new FormData(form),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                firstValidationMessage(payload.errors)
+                || payload.message
+                || 'The process could not be completed.',
+            );
+        }
+
+        closeModal(form.closest('[data-modal]'));
+        form.reset();
+        $(form).find('.js-select2').val(null).trigger('change');
+        tables.forEach((table) => table.ajax.reload(null, false));
+
+        await Swal.fire({
+            ...swalTheme,
+            icon: 'success',
+            title: form.dataset.successTitle || 'Process complete',
+            text: payload.message,
+        });
+    } catch (error) {
+        Swal.fire({
+            ...swalTheme,
+            icon: 'error',
+            title: form.dataset.errorTitle || 'Process failed',
+            text: error.message,
+        });
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -166,9 +302,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.js-crud-page').forEach((page) => {
         showFlashMessage(page);
+        initializeModals(page);
 
-        page.querySelectorAll('.js-data-table').forEach((table) => {
-            initializeDataTable(table, page);
+        const tables = Array.from(page.querySelectorAll('.js-data-table')).map((table) => (
+            initializeDataTable(table, page)
+        ));
+
+        page.querySelectorAll('.js-async-form').forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                submitAsyncForm(form, page, tables);
+            });
         });
     });
 });

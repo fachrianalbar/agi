@@ -37,18 +37,19 @@
           class="table js-data-table"
           id="customerTable"
           data-url="{{ route('customers.data') }}"
-          data-order='[[1,"asc"]]'
+          data-order='[[2,"asc"]]'
           data-plural-label="customers"
         >
           <thead>
             <tr>
+              <th data-column="row_number" data-orderable="false" data-searchable="false">No</th>
               <th data-column="action" data-orderable="false" data-searchable="false"></th>
               <th data-column="name">Name</th>
               <th data-column="username">Username</th>
               <th data-column="email">Email</th>
               <th data-column="phone">Phone</th>
               <th data-column="location" data-orderable="false">Location</th>
-              <th data-column="status" data-name="is_active">Status</th>
+              <th data-column="status" data-name="is_active" data-align="center">Status</th>
             </tr>
           </thead>
           <tbody></tbody>

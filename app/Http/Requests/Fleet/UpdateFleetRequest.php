@@ -24,10 +24,17 @@ class UpdateFleetRequest extends FormRequest
         $fleet = $this->route('fleet');
 
         return [
-            'customer_id'  => ['required', 'string', Rule::exists('customers', 'id')],
+            'customer_id' => ['required', 'string', Rule::exists('customers', 'id')],
             'vehicle_name' => ['required', 'string', 'max:200'],
-            'device_name'  => ['required', 'string', 'max:200'],
-            'is_active'    => ['boolean'],
+            'device_name' => [
+                'required',
+                'string',
+                'max:200',
+                Rule::unique('fleets', 'device_name')
+                    ->where(fn ($query) => $query->where('customer_id', $this->input('customer_id')))
+                    ->ignore($fleet?->id),
+            ],
+            'is_active' => ['boolean'],
         ];
     }
 }

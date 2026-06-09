@@ -165,24 +165,30 @@ Tabel memakai `.js-data-table` dan mendeklarasikan konfigurasi dasar:
 Setiap `<th>` wajib mendefinisikan `data-column`.
 
 ```blade
+<th data-column="row_number" data-orderable="false" data-searchable="false">No</th>
 <th data-column="action" data-orderable="false" data-searchable="false"></th>
 <th data-column="name">Name</th>
 <th data-column="location" data-orderable="false">Location</th>
-<th data-column="status" data-name="is_active">Status</th>
+<th data-column="status" data-name="is_active" data-align="center">Status</th>
 ```
 
 - `data-column`: key pada response JSON Yajra.
 - `data-name`: nama field database jika berbeda dari key response.
 - `data-orderable="false"`: menonaktifkan sorting.
 - `data-searchable="false"`: menonaktifkan pencarian.
+- `data-align="center"`: membuat header dan isi kolom rata tengah.
 - Nilai `orderable` dan `searchable` default adalah `true`.
+- `row_number` dihitung oleh `crud.js`, tidak perlu dikirim oleh backend.
+- Nomor mengikuti offset pagination server-side, sehingga halaman kedua melanjutkan
+  nomor setelah halaman pertama.
 
 Urutan kolom standar:
 
-1. action;
-2. nama/label utama;
-3. data pendukung;
-4. status di kolom terakhir jika tersedia.
+1. nomor;
+2. action;
+3. nama/label utama;
+4. data pendukung;
+5. status di kolom terakhir jika tersedia.
 
 ULID dan primary key internal tidak ditampilkan.
 
@@ -527,7 +533,57 @@ Checklist implementasi:
 9. ULID tidak tampil dan tidak ada di JSON;
 10. desktop, mobile, dan console sudah diperiksa.
 
-## 19. Quality Gate
+## 19. Modal dan Form Async
+
+### Modal Reusable
+
+Modal memakai component `<x-modal>` dan dibuka secara deklaratif:
+
+```blade
+<button type="button" data-modal-target="exampleModal">Open</button>
+
+<x-modal id="exampleModal" title="Example">
+  <button type="button" data-modal-close>Cancel</button>
+</x-modal>
+```
+
+Jangan menambahkan `onclick`, script Blade, atau JavaScript khusus modul untuk
+open/close modal. Runtime modal berada di `crud.js`.
+
+### Form Async Reusable
+
+Form proses non-CRUD yang perlu memperbarui DataTable dapat memakai:
+
+```blade
+<form
+  method="POST"
+  action="{{ route('example.process') }}"
+  class="js-async-form"
+  data-success-title="Process complete"
+>
+  @csrf
+  <button type="submit" data-loading-text="Processing...">Process</button>
+</form>
+```
+
+Kontrak endpoint:
+
+- sukses mengembalikan HTTP `200` dan JSON `message`;
+- validasi mengembalikan HTTP `422` dengan object `errors`;
+- kegagalan provider menggunakan status `502` dan JSON `message` yang aman;
+- response tidak boleh memuat token, password, ULID internal yang tidak diperlukan,
+  exception, atau stack trace.
+
+Runtime global akan:
+
+- mencegah submit normal;
+- menonaktifkan tombol selama request;
+- menampilkan error validasi atau provider lewat SweetAlert;
+- menutup modal setelah sukses;
+- mereset Select2;
+- me-refresh semua `.js-data-table` pada halaman.
+
+## 20. Quality Gate
 
 Jalankan:
 

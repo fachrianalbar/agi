@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ExternalFleetApiException;
 use App\Http\Requests\Fleet\StoreFleetRequest;
+use App\Http\Requests\Fleet\SyncFleetRequest;
 use App\Http\Requests\Fleet\UpdateFleetRequest;
 use App\Models\Customer;
 use App\Models\Fleet;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -25,7 +28,9 @@ class FleetController extends Controller
      */
     public function index(): View
     {
-        return view('pages.fleets.index');
+        return view('pages.fleets.index', [
+            'customers' => $this->fleetService->getSyncCustomers(),
+        ]);
     }
 
     /**
@@ -89,6 +94,53 @@ class FleetController extends Controller
         return redirect()
             ->route('fleets.index')
             ->with('success', "Fleet \"{$fleet->vehicle_name}\" created successfully.");
+    }
+
+    /**
+     * Synchronize fleets for the selected customer.
+     */
+    public function sync(SyncFleetRequest $request): RedirectResponse|JsonResponse
+    {
+        $customer = Customer::query()->findOrFail($request->validated('customer_id'));
+
+        try {
+            $summary = $this->fleetService->synchronize($customer);
+        } catch (ExternalFleetApiException $exception) {
+            Log::warning('Fleet synchronization failed.', [
+                'customer_id' => $customer->id,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                ], 502);
+            }
+
+            return redirect()
+                ->route('fleets.index')
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        }
+
+        $message = sprintf(
+            'Fleet synchronization for %s completed: %d created, %d updated, and %d unchanged.',
+            $customer->name,
+            $summary['created'],
+            $summary['updated'],
+            $summary['unchanged'],
+        );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'data' => $summary,
+            ]);
+        }
+
+        return redirect()
+            ->route('fleets.index')
+            ->with('success', $message);
     }
 
     /**

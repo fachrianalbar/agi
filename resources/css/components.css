@@ -61,10 +61,21 @@
 
 .data-table-container table.dataTable thead th {
     border-bottom: 1px solid var(--color-border-light);
+    text-align: center;
 }
 
 .data-table-container table.dataTable tbody td {
     border-bottom: 1px solid var(--color-border-light);
+    text-align: left;
+}
+
+.data-table-container table.dataTable .table-cell-center {
+    text-align: center;
+}
+
+.data-table-container table.dataTable .table-cell-number {
+    width: 56px;
+    white-space: nowrap;
 }
 
 .data-table-container table.dataTable tbody tr:last-child td {

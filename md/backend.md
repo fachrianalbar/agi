@@ -124,7 +124,57 @@ Minimal test untuk setiap modul backend:
 
 Gunakan `RefreshDatabase` agar test independen.
 
-## 14. Quality Gate
+## 14. Integrasi API Eksternal
+
+Integrasi provider eksternal harus dipisahkan dari controller dan service domain:
+
+```text
+Controller
+  -> DomainService
+      -> ExternalProviderService
+```
+
+Aturan implementasi:
+
+- base URL, grant type, timeout, dan konfigurasi non-user disimpan di
+  `config/services.php` serta `.env`;
+- credential milik user/customer diambil dari model, tidak ditulis di source code;
+- credential, access token, dan URL yang memuat query rahasia tidak boleh masuk log,
+  flash message, response JSON, atau exception yang tampil ke user;
+- gunakan Laravel HTTP Client, bukan cURL manual;
+- selalu tetapkan connect timeout dan request timeout;
+- ubah kegagalan koneksi, HTTP, dan payload menjadi exception domain yang aman;
+- test wajib memakai `Http::fake()`, bukan provider produksi.
+
+Token eksternal yang dipakai berulang harus disimpan di cache:
+
+- key cache mengandung identitas pemilik dan fingerprint credential;
+- TTL mengikuti `expires_in` dengan buffer sebelum waktu kedaluwarsa;
+- perubahan username/password otomatis menghasilkan key baru;
+- jika provider menolak token, hapus cache dan refresh maksimal satu kali;
+- jangan melakukan retry tanpa batas.
+
+Sinkronisasi data menggunakan unique business key yang eksplisit. Operasi upsert
+berjalan dalam transaction dan harus membedakan jumlah record `created`,
+`updated`, dan `unchanged`. Record soft-deleted boleh dipulihkan jika business key
+yang sama kembali dari provider.
+
+## 15. Penyimpanan Credential Provider
+
+Project ini saat ini menyimpan password akun GPS customer sebagai plaintext
+karena nilainya harus dikirim kembali ke provider dan keputusan implementasi
+memang mensyaratkan tanpa hash maupun enkripsi.
+
+Konsekuensinya:
+
+- field password wajib masuk `$hidden`;
+- password tidak boleh dipilih untuk DataTables atau dikirim ke Blade;
+- password tidak boleh dicatat ke log;
+- akses database harus dibatasi;
+- perubahan ke hash tidak boleh dilakukan karena hash tidak dapat dikembalikan
+  menjadi credential asli.
+
+## 16. Quality Gate
 
 Sebelum perubahan dianggap selesai, jalankan:
 
