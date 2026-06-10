@@ -16,6 +16,7 @@
     "dependencies": {
         "datatables.net-dt": "^2.3.8",
         "jquery": "^3.7.1",
+        "leaflet": "^1.9.4",
         "select2": "^4.1.0",
         "sweetalert2": "^11.26.25"
     }

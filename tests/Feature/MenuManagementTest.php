@@ -73,6 +73,17 @@ class MenuManagementTest extends TestCase
         $this->seed(FleetMenuSeeder::class);
         $this->seed(FleetMenuSeeder::class);
 
+        Menu::query()->create([
+            'name' => 'Non Active Fleet',
+            'section' => 'Fleet',
+            'icon' => 'inactive',
+            'target' => '_self',
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
+
+        $this->seed(FleetMenuSeeder::class);
+
         $this->assertDatabaseHas('menus', [
             'parent_id' => null,
             'name' => 'All Fleet',
@@ -82,17 +93,30 @@ class MenuManagementTest extends TestCase
         ]);
         $this->assertDatabaseHas('menus', [
             'parent_id' => null,
-            'name' => 'Non Active Fleet',
+            'name' => 'Summary Report',
             'section' => 'Fleet',
-            'icon' => 'inactive',
-            'route_name' => null,
-            'url' => null,
+            'icon' => 'analytics',
+            'route_name' => 'summary-reports.index',
+            'active_pattern' => 'summary-reports.*',
+        ]);
+        $this->assertDatabaseHas('menus', [
+            'parent_id' => null,
+            'name' => 'Fleet History',
+            'section' => 'Fleet',
+            'icon' => 'activity',
+            'route_name' => 'fleet-histories.index',
+            'active_pattern' => 'fleet-histories.*',
         ]);
         $this->assertDatabaseMissing('menus', [
             'parent_id' => null,
             'name' => 'Fleet',
         ]);
-        $this->assertDatabaseCount('menus', 2);
+        $this->assertDatabaseMissing('menus', [
+            'parent_id' => null,
+            'name' => 'Non Active Fleet',
+            'section' => 'Fleet',
+        ]);
+        $this->assertDatabaseCount('menus', 3);
     }
 
     public function test_menu_can_be_created_with_a_ulid(): void

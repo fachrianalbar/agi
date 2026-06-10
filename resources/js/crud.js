@@ -84,6 +84,103 @@ function initializeSelect2() {
     });
 }
 
+function replaceSelectOptions(select, items, placeholder) {
+    select.innerHTML = '';
+    select.append(new Option(placeholder, ''));
+
+    items.forEach((item) => {
+        select.append(new Option(item.label, item.value));
+    });
+}
+
+function refreshSelect2(select) {
+    if (window.jQuery && $(select).hasClass('select2-hidden-accessible')) {
+        $(select)
+            .prop('disabled', select.disabled)
+            .trigger('change');
+    }
+}
+
+function initializeDependentSelects(page) {
+    page.querySelectorAll('[data-dependent-url][data-dependent-parent]').forEach((select) => {
+        const parent = page.querySelector(select.dataset.dependentParent);
+
+        if (!parent) {
+            return;
+        }
+
+        const placeholder = select.dataset.placeholder || 'Select an option...';
+        const emptyLabel = select.dataset.emptyLabel || placeholder;
+        const param = select.dataset.dependentParam || parent.name || 'parent';
+
+        const loadOptions = async () => {
+            const parentValue = parent.value;
+
+            if (!parentValue) {
+                replaceSelectOptions(select, [], emptyLabel);
+                select.value = '';
+                select.disabled = true;
+                refreshSelect2(select);
+
+                return;
+            }
+
+            select.disabled = true;
+            replaceSelectOptions(select, [], 'Loading...');
+            refreshSelect2(select);
+
+            try {
+                const url = new URL(select.dataset.dependentUrl, window.location.origin);
+                url.searchParams.set(param, parentValue);
+
+                const response = await fetch(url, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.message || 'Options could not be loaded.');
+                }
+
+                const items = Array.isArray(payload.data) ? payload.data : [];
+                const selectedValue = select.dataset.selectedValue || '';
+
+                replaceSelectOptions(select, items, placeholder);
+                select.disabled = false;
+
+                if (selectedValue && items.some((item) => String(item.value) === selectedValue)) {
+                    select.value = selectedValue;
+                    delete select.dataset.selectedValue;
+                } else {
+                    select.value = '';
+                }
+            } catch (error) {
+                replaceSelectOptions(select, [], 'Unable to load options');
+                select.value = '';
+                select.disabled = true;
+            }
+
+            refreshSelect2(select);
+        };
+
+        const handleParentChange = () => {
+            delete select.dataset.selectedValue;
+            loadOptions();
+        };
+
+        if (window.jQuery) {
+            $(parent).on('change', handleParentChange);
+        } else {
+            parent.addEventListener('change', handleParentChange);
+        }
+
+        loadOptions();
+    });
+}
+
 function getColumns(tableElement) {
     return Array.from(tableElement.querySelectorAll('thead th')).map((header) => {
         if (header.dataset.column === 'row_number') {
@@ -553,6 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showFlashMessage(page);
         initializeModals(page);
         initializeMapModals(page);
+        initializeDependentSelects(page);
 
         const tables = Array.from(page.querySelectorAll('.js-data-table')).map((table) => (
             initializeDataTable(table, page)

@@ -47,23 +47,44 @@ class FleetMenuSeeder extends Seeder
                 ]);
             }
 
+            Menu::query()
+                ->where('name', 'Non Active Fleet')
+                ->where('section', 'Fleet')
+                ->delete();
+
             Menu::query()->updateOrCreate(
                 [
-                    'name' => 'Non Active Fleet',
+                    'route_name' => 'summary-reports.index',
                 ],
                 [
                     'parent_id' => null,
+                    'name' => 'Summary Report',
                     'section' => 'Fleet',
-                    'icon' => 'inactive',
-                    'route_name' => null,
+                    'icon' => 'analytics',
                     'url' => null,
-                    'active_pattern' => null,
+                    'active_pattern' => 'summary-reports.*',
                     'target' => '_self',
                     'sort_order' => 20,
                     'is_active' => true,
                 ],
             );
 
+            Menu::query()->updateOrCreate(
+                [
+                    'route_name' => 'fleet-histories.index',
+                ],
+                [
+                    'parent_id' => null,
+                    'name' => 'Fleet History',
+                    'section' => 'Fleet',
+                    'icon' => 'activity',
+                    'url' => null,
+                    'active_pattern' => 'fleet-histories.*',
+                    'target' => '_self',
+                    'sort_order' => 30,
+                    'is_active' => true,
+                ],
+            );
             $legacyParent?->delete();
         });
     }

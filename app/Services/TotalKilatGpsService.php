@@ -125,6 +125,105 @@ class TotalKilatGpsService
         return $positions;
     }
 
+    /**
+     * Get daily summary report rows for a single device.
+     *
+     * @return list<array{
+     *     vehicle_name: string,
+     *     device_name: string,
+     *     datetime: string,
+     *     original_gpsdate: string,
+     *     start_time: string|null,
+     *     start_location: string,
+     *     end_time: string|null,
+     *     end_location: string,
+     *     running_time: int,
+     *     idle_time: int,
+     *     travelling: int,
+     *     parking: int,
+     *     odometer: float,
+     *     usage: float,
+     *     max_speed: float,
+     *     geofence_times: int
+     * }>
+     */
+    public function getDailySummaryReport(
+        Customer $customer,
+        string $deviceName,
+        string $startTime,
+        string $endTime,
+    ): array {
+        $token = $this->getAccessToken($customer);
+        $payload = $this->requestDailySummaryReport($token, $deviceName, $startTime, $endTime);
+
+        if ($this->isAccessTokenError($payload)) {
+            Cache::forget($this->tokenCacheKey($customer));
+
+            $token = $this->getAccessToken($customer, refresh: true);
+            $payload = $this->requestDailySummaryReport($token, $deviceName, $startTime, $endTime);
+        }
+
+        if ($this->isAccessTokenError($payload)) {
+            throw new ExternalFleetApiException('GPS access token was rejected after being refreshed.');
+        }
+
+        if (isset($payload['errcode'])) {
+            throw new ExternalFleetApiException('The GPS provider could not return daily summary report.');
+        }
+
+        return $this->normalizeDailySummaryReport($payload);
+    }
+
+    /**
+     * Get device history rows for a single device.
+     *
+     * @return list<array{
+     *     datetime: string,
+     *     date_time_utc: string,
+     *     local_date_time: string,
+     *     gps_location: string,
+     *     gps_valid: bool,
+     *     longitude: float,
+     *     latitude: float,
+     *     speed: float,
+     *     direction: int,
+     *     engine: int,
+     *     odometer: float,
+     *     temperature: string,
+     *     max_speed: float,
+     *     overspeed: bool,
+     *     harsh_acceleration: bool,
+     *     harsh_braking: bool,
+     *     harsh_cornering: bool
+     * }>
+     */
+    public function getDeviceHistory(
+        Customer $customer,
+        string $deviceName,
+        string $startTime,
+        string $endTime,
+    ): array {
+        $token = $this->getAccessToken($customer);
+        $payload = $this->requestDeviceHistory($token, $deviceName, $startTime, $endTime);
+
+        if ($this->isAccessTokenError($payload)) {
+            Cache::forget($this->tokenCacheKey($customer));
+
+            $token = $this->getAccessToken($customer, refresh: true);
+            $payload = $this->requestDeviceHistory($token, $deviceName, $startTime, $endTime);
+        }
+
+        if ($this->isAccessTokenError($payload)) {
+            throw new ExternalFleetApiException('GPS access token was rejected after being refreshed.');
+        }
+
+        if (isset($payload['errcode'])) {
+            throw new ExternalFleetApiException('The GPS provider could not return device history.');
+        }
+
+        return $this->normalizeDeviceHistory($payload);
+    }
+
     private function getAccessToken(Customer $customer, bool $refresh = false): string
     {
         $cacheKey = $this->tokenCacheKey($customer);
@@ -163,6 +262,42 @@ class TotalKilatGpsService
         return $this->jsonPayload($this->sendGetRequest('/deviceInfo', [
             'grant_type' => $this->grantType(),
             'access_token' => $token,
+        ]));
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function requestDailySummaryReport(
+        string $token,
+        string $deviceName,
+        string $startTime,
+        string $endTime,
+    ): array {
+        return $this->jsonPayload($this->sendGetRequest('/dailySummaryReport', [
+            'grant_type' => $this->grantType(),
+            'device_name' => $deviceName,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'access_token' => $token,
+        ]));
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function requestDeviceHistory(
+        string $token,
+        string $deviceName,
+        string $startTime,
+        string $endTime,
+    ): array {
+        return $this->jsonPayload($this->sendGetRequest('/deviceHistory', [
+            'grant_type' => $this->grantType(),
+            'access_token' => $token,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'device_name' => $deviceName,
         ]));
     }
 
@@ -358,6 +493,130 @@ class TotalKilatGpsService
             'acc' => (int) Arr::get($position, 'acc', 0),
             'status_icon' => (int) Arr::get($position, 'statusIcon', 0),
         ];
+    }
+
+    /**
+     * @param  array<mixed>  $payload
+     * @return list<array{
+     *     vehicle_name: string,
+     *     device_name: string,
+     *     datetime: string,
+     *     original_gpsdate: string,
+     *     start_time: string|null,
+     *     start_location: string,
+     *     end_time: string|null,
+     *     end_location: string,
+     *     running_time: int,
+     *     idle_time: int,
+     *     travelling: int,
+     *     parking: int,
+     *     odometer: float,
+     *     usage: float,
+     *     max_speed: float,
+     *     geofence_times: int
+     * }>
+     */
+    private function normalizeDailySummaryReport(array $payload): array
+    {
+        $reports = [];
+
+        $walk = function (array $items) use (&$walk, &$reports): void {
+            if (array_key_exists('device_name', $items) && array_key_exists('datetime', $items)) {
+                $reports[] = [
+                    'vehicle_name' => trim((string) Arr::get($items, 'vehicle_name', '')),
+                    'device_name' => trim((string) Arr::get($items, 'device_name', '')),
+                    'datetime' => trim((string) Arr::get($items, 'datetime', '')),
+                    'original_gpsdate' => trim((string) Arr::get($items, 'original_gpsdate', '')),
+                    'start_time' => filled(Arr::get($items, 'start_time')) ? trim((string) Arr::get($items, 'start_time')) : null,
+                    'start_location' => trim((string) Arr::get($items, 'start_location', '')),
+                    'end_time' => filled(Arr::get($items, 'end_time')) ? trim((string) Arr::get($items, 'end_time')) : null,
+                    'end_location' => trim((string) Arr::get($items, 'end_location', '')),
+                    'running_time' => (int) Arr::get($items, 'runing_time', 0),
+                    'idle_time' => (int) Arr::get($items, 'idle_time', 0),
+                    'travelling' => (int) Arr::get($items, 'travelling', 0),
+                    'parking' => (int) Arr::get($items, 'parking', 0),
+                    'odometer' => (float) Arr::get($items, 'odometer', 0),
+                    'usage' => (float) Arr::get($items, 'usage', 0),
+                    'max_speed' => (float) Arr::get($items, 'max_speed', 0),
+                    'geofence_times' => (int) Arr::get($items, 'geofence_times', 0),
+                ];
+
+                return;
+            }
+
+            foreach ($items as $item) {
+                if (is_array($item)) {
+                    $walk($item);
+                }
+            }
+        };
+
+        $walk($payload);
+
+        return $reports;
+    }
+
+    /**
+     * @param  array<mixed>  $payload
+     * @return list<array{
+     *     datetime: string,
+     *     date_time_utc: string,
+     *     local_date_time: string,
+     *     gps_location: string,
+     *     gps_valid: bool,
+     *     longitude: float,
+     *     latitude: float,
+     *     speed: float,
+     *     direction: int,
+     *     engine: int,
+     *     odometer: float,
+     *     temperature: string,
+     *     max_speed: float,
+     *     overspeed: bool,
+     *     harsh_acceleration: bool,
+     *     harsh_braking: bool,
+     *     harsh_cornering: bool
+     * }>
+     */
+    private function normalizeDeviceHistory(array $payload): array
+    {
+        $histories = [];
+
+        $walk = function (array $items) use (&$walk, &$histories): void {
+            if (array_key_exists('datetime', $items) && array_key_exists('gpsLocation', $items)) {
+                $histories[] = [
+                    'datetime' => trim((string) Arr::get($items, 'datetime', '')),
+                    'date_time_utc' => trim((string) Arr::get($items, 'dateTimeUTC', '')),
+                    'local_date_time' => trim((string) Arr::get($items, 'localDateTime', '')),
+                    'gps_location' => trim((string) Arr::get($items, 'gpsLocation', '')),
+                    'gps_valid' => (bool) Arr::get($items, 'gpsValid', false),
+                    'longitude' => (float) Arr::get($items, 'lon', 0),
+                    'latitude' => (float) Arr::get($items, 'lat', 0),
+                    'speed' => (float) Arr::get($items, 'speed', 0),
+                    'direction' => (int) Arr::get($items, 'direction', 0),
+                    'engine' => (int) Arr::get($items, 'engine', 0),
+                    'odometer' => (float) Arr::get($items, 'odometer', 0),
+                    'temperature' => trim((string) Arr::get($items, 'temperature', '')),
+                    'max_speed' => (float) Arr::get($items, 'maxSpeed', 0),
+                    'overspeed' => (bool) Arr::get($items, 'overspeed', false),
+                    'harsh_acceleration' => (bool) Arr::get($items, 'harshAcceleration', false),
+                    'harsh_braking' => (bool) Arr::get($items, 'harshBraking', false),
+                    'harsh_cornering' => (bool) Arr::get($items, 'harshCornering', false),
+                ];
+
+                return;
+            }
+
+            foreach ($items as $item) {
+                if (is_array($item)) {
+                    $walk($item);
+                }
+            }
+        };
+
+        $walk($payload);
+
+        return $histories;
     }
 
     /**
