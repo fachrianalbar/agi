@@ -49,7 +49,7 @@ class CustomerController extends Controller
             ->filterColumn('location', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('city', 'like', "%{$keyword}%")
-                      ->orWhere('country', 'like', "%{$keyword}%");
+                        ->orWhere('country', 'like', "%{$keyword}%");
                 });
             })
             ->only([

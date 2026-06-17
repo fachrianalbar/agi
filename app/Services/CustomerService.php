@@ -67,6 +67,7 @@ class CustomerService
                 unset($data['password']);
             }
             $customer->update($data);
+
             return $customer->fresh();
         });
     }

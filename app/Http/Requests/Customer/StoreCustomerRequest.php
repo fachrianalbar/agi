@@ -21,7 +21,7 @@ class StoreCustomerRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'email'     => trim($this->input('email', '')),
+            'email' => trim($this->input('email', '')),
             'is_active' => $this->boolean('is_active'),
         ]);
     }
@@ -32,18 +32,18 @@ class StoreCustomerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'       => ['required', 'string', 'max:200'],
-            'username'   => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('customers', 'username')],
-            'email'      => ['required', 'email', 'max:200', Rule::unique('customers', 'email')],
-            'password'   => ['required'],
-            'phone'      => ['nullable', 'string', 'max:30'],
-            'address'    => ['nullable', 'string', 'max:500'],
-            'city'       => ['nullable', 'string', 'max:100'],
-            'state'      => ['nullable', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:200'],
+            'username' => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('customers', 'username')],
+            'email' => ['required', 'email', 'max:200', Rule::unique('customers', 'email')],
+            'password' => ['required'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'state' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
-            'country'    => ['nullable', 'string', 'max:100'],
-            'notes'      => ['nullable', 'string', 'max:2000'],
-            'is_active'  => ['boolean'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'is_active' => ['boolean'],
         ];
     }
 }

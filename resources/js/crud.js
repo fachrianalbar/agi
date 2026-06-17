@@ -79,7 +79,7 @@ function initializeSelect2() {
         select.select2({
             width: '100%',
             placeholder: select.data('placeholder') || null,
-            allowClear: select.data('allow-clear') === true,
+            allowClear: select.data('allow-clear') === true || select.data('allow-clear') === 'true',
         });
     });
 }
