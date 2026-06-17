@@ -109,6 +109,14 @@ class MenuManagementTest extends TestCase
         ]);
         $this->assertDatabaseHas('menus', [
             'parent_id' => null,
+            'name' => 'Non Active Fleet',
+            'section' => 'Fleet',
+            'icon' => 'inactive',
+            'route_name' => 'inactive.index',
+            'active_pattern' => 'inactive.*',
+        ]);
+        $this->assertDatabaseHas('menus', [
+            'parent_id' => null,
             'name' => 'Fleet Transactions',
             'section' => 'Transaction',
             'icon' => 'receipt',
@@ -123,8 +131,9 @@ class MenuManagementTest extends TestCase
             'parent_id' => null,
             'name' => 'Non Active Fleet',
             'section' => 'Fleet',
+            'route_name' => null,
         ]);
-        $this->assertDatabaseCount('menus', 4);
+        $this->assertDatabaseCount('menus', 5);
     }
 
     public function test_menu_can_be_created_with_a_ulid(): void

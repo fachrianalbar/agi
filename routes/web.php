@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FleetController;
 use App\Http\Controllers\FleetHistoryController;
 use App\Http\Controllers\FleetTransactionController;
+use App\Http\Controllers\InactiveFleetController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SummaryReportController;
@@ -66,6 +67,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('fleets/latest-positions', [FleetController::class, 'latestPositions'])->name('fleets.latest-positions');
     Route::post('fleets/sync', [FleetController::class, 'sync'])->name('fleets.sync');
     Route::resource('fleets', FleetController::class)->except('show');
+
+    // Inactive fleet lookup
+    Route::get('inactive', [InactiveFleetController::class, 'index'])->name('inactive.index');
+    Route::get('inactive/data', [InactiveFleetController::class, 'data'])->name('inactive.data');
+    Route::get('inactive/{customer}/vehicles', [InactiveFleetController::class, 'vehicles'])->name('inactive.vehicles');
 
     // Reports
     Route::get('summary-reports', [SummaryReportController::class, 'index'])->name('summary-reports.index');

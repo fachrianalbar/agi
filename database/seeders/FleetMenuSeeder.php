@@ -50,7 +50,28 @@ class FleetMenuSeeder extends Seeder
             Menu::query()
                 ->where('name', 'Non Active Fleet')
                 ->where('section', 'Fleet')
+                ->where(function ($query): void {
+                    $query->whereNull('route_name')
+                        ->orWhere('route_name', '!=', 'inactive.index');
+                })
                 ->delete();
+
+            Menu::query()->updateOrCreate(
+                [
+                    'route_name' => 'inactive.index',
+                ],
+                [
+                    'parent_id' => null,
+                    'name' => 'Non Active Fleet',
+                    'section' => 'Fleet',
+                    'icon' => 'inactive',
+                    'url' => null,
+                    'active_pattern' => 'inactive.*',
+                    'target' => '_self',
+                    'sort_order' => 15,
+                    'is_active' => true,
+                ],
+            );
 
             Menu::query()->updateOrCreate(
                 [

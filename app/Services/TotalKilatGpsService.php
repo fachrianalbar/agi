@@ -224,6 +224,39 @@ class TotalKilatGpsService
         return $this->normalizeDeviceHistory($payload);
     }
 
+    /**
+     * Get inactive device records for a customer.
+     *
+     * @return list<array{
+     *     vehicle_name: string,
+     *     device_name: string,
+     *     last_update: string,
+     *     status: string
+     * }>
+     */
+    public function getInactiveDevices(Customer $customer): array
+    {
+        $token = $this->getAccessToken($customer);
+        $payload = $this->requestInactiveDevices($token);
+
+        if ($this->isAccessTokenError($payload)) {
+            Cache::forget($this->tokenCacheKey($customer));
+
+            $token = $this->getAccessToken($customer, refresh: true);
+            $payload = $this->requestInactiveDevices($token);
+        }
+
+        if ($this->isAccessTokenError($payload)) {
+            throw new ExternalFleetApiException('GPS access token was rejected after being refreshed.');
+        }
+
+        if (isset($payload['errcode'])) {
+            throw new ExternalFleetApiException('The GPS provider could not return inactive fleet data.');
+        }
+
+        return $this->normalizeInactiveDevices($payload);
+    }
+
     private function getAccessToken(Customer $customer, bool $refresh = false): string
     {
         $cacheKey = $this->tokenCacheKey($customer);
@@ -298,6 +331,17 @@ class TotalKilatGpsService
             'start_time' => $startTime,
             'end_time' => $endTime,
             'device_name' => $deviceName,
+        ]));
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function requestInactiveDevices(string $token): array
+    {
+        return $this->jsonPayload($this->sendGetRequest('/inactive', [
+            'grant_type' => $this->grantType(),
+            'access_token' => $token,
         ]));
     }
 
@@ -617,6 +661,97 @@ class TotalKilatGpsService
         $walk($payload);
 
         return $histories;
+    }
+
+    /**
+     * @param  array<mixed>  $payload
+     * @return list<array{
+     *     vehicle_name: string,
+     *     device_name: string,
+     *     last_update: string,
+     *     status: string
+     * }>
+     */
+    private function normalizeInactiveDevices(array $payload): array
+    {
+        $devices = [];
+
+        $walk = function (array $items) use (&$walk, &$devices): void {
+            $vehicleName = $this->stringFromKeys($items, [
+                'vehicle_name',
+                'vehicleName',
+                'vehicle',
+                'vehicle_no',
+                'vehicleNo',
+                'plat_no',
+                'plate_no',
+                'plateNo',
+            ]);
+            $deviceName = $this->stringFromKeys($items, [
+                'device_name',
+                'deviceName',
+                'device',
+                'imei',
+                'gps_imei',
+                'gpsImei',
+            ]);
+
+            if ($vehicleName !== '' || $deviceName !== '') {
+                $key = $deviceName !== '' ? $deviceName : $vehicleName;
+                $devices[$key] = [
+                    'vehicle_name' => $vehicleName !== '' ? $vehicleName : '—',
+                    'device_name' => $deviceName !== '' ? $deviceName : '—',
+                    'last_update' => $this->stringFromKeys($items, [
+                        'last_update',
+                        'lastUpdate',
+                        'last_position',
+                        'lastPosition',
+                        'last_gpsdate',
+                        'lastGpsdate',
+                        'datetime',
+                        'gpsdate',
+                        'inactive_since',
+                        'inactiveSince',
+                        'inactive_date',
+                        'inactiveDate',
+                        'start_inactive',
+                        'startInactive',
+                        'expired_at',
+                        'expiredAt',
+                    ]),
+                    'status' => 'INACTIVE',
+                ];
+
+                return;
+            }
+
+            foreach ($items as $item) {
+                if (is_array($item)) {
+                    $walk($item);
+                }
+            }
+        };
+
+        $walk($payload);
+
+        return array_values($devices);
+    }
+
+    /**
+     * @param  array<mixed>  $items
+     * @param  list<string>  $keys
+     */
+    private function stringFromKeys(array $items, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $value = Arr::get($items, $key);
+
+            if (filled($value)) {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
     }
 
     /**
