@@ -172,7 +172,7 @@ class FleetService
                     continue;
                 }
 
-                $formattedPosition = $this->formatLatestPosition($position);
+                $formattedPosition = $this->formatLatestPosition($position, $fleet);
                 $result[$reference] = $formattedPosition;
 
                 DB::table('fleets')
@@ -203,7 +203,7 @@ class FleetService
      * }  $position
      * @return array<string, array<string, mixed>>
      */
-    private function formatLatestPosition(array $position): array
+    private function formatLatestPosition(array $position, ?Fleet $fleet = null): array
     {
         [$statusLabel, $statusVariant] = match ($position['status_icon']) {
             1 => ['Running', 'success'],
@@ -214,7 +214,11 @@ class FleetService
         $engineOn = $position['acc'] === 1;
         $latitude = $position['latitude'];
         $longitude = $position['longitude'];
-        $address = $this->reverseGeocodingService->execute($latitude, $longitude);
+        $address = trim((string) ($fleet?->latest_address ?? ''));
+
+        if ($address === '' && (bool) config('services.total_kilat_gps.resolve_addresses_on_refresh', true)) {
+            $address = $this->reverseGeocodingService->execute($latitude, $longitude);
+        }
 
         return [
             'mileage' => [
