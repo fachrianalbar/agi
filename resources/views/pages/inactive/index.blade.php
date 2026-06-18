@@ -189,6 +189,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function (character) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+      }[character];
+    });
+  }
+
   function resetModal(trigger) {
     setText(elements.customerName, trigger.dataset.customerName || 'Customer');
     setText(elements.customerUsername, trigger.dataset.customerUsername || 'Username');
@@ -498,15 +510,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var fileName = 'inactive-fleet-' + sanitizeFileName(customer.name) + '.png';
     var message = 'Informasi : Mobil tidak aktif ' + vehicles.length + ' Unit. ' + customer.name;
+    var dataUrl = canvas.toDataURL('image/png');
 
     activeSnapshot = {
       blob: blob,
+      dataUrl: dataUrl,
       fileName: fileName,
       message: message,
       title: 'Vehicle Non Active',
     };
 
-    snapshotElements.preview.src = canvas.toDataURL('image/png');
+    snapshotElements.preview.src = dataUrl;
     setText(snapshotElements.total, vehicles.length + (vehicles.length === 1 ? ' Vehicle' : ' Vehicles'));
     setHidden(snapshotElements.loading, true);
     setHidden(snapshotElements.previewWrap, false);
@@ -514,22 +528,72 @@ document.addEventListener('DOMContentLoaded', function () {
     snapshotElements.share.disabled = false;
   }
 
-  function shareSnapshot() {
+  async function writeSnapshotClipboard(includeCaption) {
+    if (!activeSnapshot) {
+      return false;
+    }
+
+    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+      return false;
+    }
+
+    var clipboardData = {
+      'image/png': activeSnapshot.blob,
+    };
+
+    if (includeCaption) {
+      clipboardData['text/plain'] = new Blob([activeSnapshot.message], {
+        type: 'text/plain',
+      });
+      clipboardData['text/html'] = new Blob([
+        '<p>' + escapeHtml(activeSnapshot.message) + '</p>' +
+          '<img src="' + activeSnapshot.dataUrl + '" alt="' + escapeHtml(activeSnapshot.title) + '">',
+      ], {
+        type: 'text/html',
+      });
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem(clipboardData),
+    ]);
+
+    return true;
+  }
+
+  function openWhatsAppApp(message) {
+    window.location.href = 'whatsapp://send?text=' + encodeURIComponent(message);
+  }
+
+  async function shareSnapshot() {
     if (!activeSnapshot) {
       return;
     }
 
-    window.open(
-      'https://wa.me/?text=' + encodeURIComponent(activeSnapshot.message),
-      '_blank',
-      'noopener,noreferrer',
-    );
+    var copiedImage = false;
+
+    try {
+      copiedImage = await writeSnapshotClipboard(true);
+    } catch {
+      try {
+        copiedImage = await writeSnapshotClipboard(false);
+      } catch {
+        copiedImage = false;
+      }
+    }
+
+    if (!copiedImage && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(activeSnapshot.message).catch(function () {});
+    }
+
+    openWhatsAppApp(activeSnapshot.message);
 
     if (window.Swal) {
       window.Swal.fire({
-        icon: 'info',
-        title: 'WhatsApp opened',
-        text: 'Kalau sudah klik Copy Image, paste snapshot langsung di chat WhatsApp.',
+        icon: copiedImage ? 'success' : 'info',
+        title: copiedImage ? 'Image copied' : 'Open WhatsApp',
+        text: copiedImage
+          ? 'Snapshot dan caption sudah dicopy. Paste di aplikasi WhatsApp.'
+          : 'Caption sudah dicopy. Jika aplikasi WhatsApp tidak terbuka, buka WhatsApp lalu paste manual.',
         confirmButtonColor: '#E2725B',
       });
     }
@@ -553,11 +617,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'image/png': activeSnapshot.blob,
-      }),
-    ]);
+    await writeSnapshotClipboard(false);
 
     if (window.Swal) {
       window.Swal.fire({
@@ -654,7 +714,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
   snapshotElements.share.addEventListener('click', function () {
-    shareSnapshot();
+    shareSnapshot().catch(function (error) {
+      if (window.Swal) {
+        window.Swal.fire({
+          icon: 'error',
+          title: 'Share failed',
+          text: error.message || 'Snapshot could not be copied for WhatsApp.',
+          confirmButtonColor: '#E2725B',
+        });
+      }
+    });
   });
 });
 </script>
