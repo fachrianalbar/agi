@@ -8,7 +8,9 @@
 <style>
   #inactiveFleetModal .modal,
   #inactiveSnapshotModal .modal {
-    max-width: 960px !important;
+    width: 95vw;
+    max-width: 1320px !important;
+    max-height: 92vh;
   }
 </style>
 @endpush
@@ -330,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return [];
     }
 
-    context.font = '26px Arial';
+    context.font = '15px Arial';
 
     return vehicles.map(function (vehicle, index) {
       var row = [
@@ -342,9 +344,9 @@ document.addEventListener('DOMContentLoaded', function () {
         vehicle.location || '-',
       ];
       var lineCounts = row.map(function (value, columnIndex) {
-        return wrapText(context, value, columns[columnIndex].width - 28).length;
+        return wrapText(context, value, columns[columnIndex].width - 16).length;
       });
-      var height = Math.max(64, Math.max.apply(Math, lineCounts) * 30 + 28);
+      var height = Math.max(36, Math.max.apply(Math, lineCounts) * 18 + 14);
 
       return {
         values: row,
@@ -356,25 +358,25 @@ document.addEventListener('DOMContentLoaded', function () {
   function drawSnapshotCanvas(customer, vehicles) {
     var canvas = document.createElement('canvas');
     var context = canvas.getContext('2d');
-    var width = 1400;
-    var margin = 58;
+    var width = 1000;
+    var margin = 32;
     var tableWidth = width - margin * 2;
     var columns = [
-      { label: 'No', width: 80 },
-      { label: 'Vehicle Name', width: 310 },
-      { label: 'Datetime', width: 265 },
-      { label: 'Latitude', width: 180 },
-      { label: 'Longitude', width: 180 },
-      { label: 'Location', width: 269 },
+      { label: 'No', width: 42 },
+      { label: 'Vehicle Name', width: 175 },
+      { label: 'Datetime', width: 174 },
+      { label: 'Latitude', width: 110 },
+      { label: 'Longitude', width: 120 },
+      { label: 'Location', width: 315 },
     ];
     var rows = measureSnapshotRows(context, vehicles, columns);
-    var headerHeight = 220;
-    var tableHeaderHeight = 62;
-    var emptyHeight = vehicles.length === 0 ? 110 : 0;
+    var headerHeight = 124;
+    var tableHeaderHeight = 36;
+    var emptyHeight = vehicles.length === 0 ? 64 : 0;
     var tableHeight = tableHeaderHeight + rows.reduce(function (total, row) {
       return total + row.height;
     }, 0) + emptyHeight;
-    var height = headerHeight + tableHeight + 96;
+    var height = headerHeight + tableHeight + 52;
     var generatedAt = new Date().toLocaleString('id-ID', {
       dateStyle: 'medium',
       timeStyle: 'short',
@@ -386,39 +388,39 @@ document.addEventListener('DOMContentLoaded', function () {
     context.fillStyle = '#FFF4EC';
     context.fillRect(0, 0, width, height);
     context.fillStyle = '#FFFFFF';
-    drawRoundedRect(context, 36, 36, width - 72, height - 72, 22);
+    drawRoundedRect(context, 18, 18, width - 36, height - 36, 14);
     context.fill();
 
     context.fillStyle = '#4E2C23';
-    context.font = '700 42px Arial';
-    context.fillText('Vehicle Non Active', margin, 98);
-    context.font = '700 30px Arial';
-    context.fillText(customer.name || 'Customer', margin, 145);
+    context.font = '700 22px Arial';
+    context.fillText('Vehicle Non Active', margin, 54);
+    context.font = '700 16px Arial';
+    context.fillText(customer.name || 'Customer', margin, 82);
     context.fillStyle = '#72584F';
-    context.font = '24px Arial';
-    context.fillText('Generated ' + generatedAt, margin, 184);
+    context.font = '13px Arial';
+    context.fillText('Generated ' + generatedAt, margin, 104);
 
     context.fillStyle = '#9CA3AF';
-    drawRoundedRect(context, width - margin - 190, 86, 190, 48, 24);
+    drawRoundedRect(context, width - margin - 118, 48, 118, 30, 15);
     context.fill();
     context.fillStyle = '#FFFFFF';
-    context.font = '700 22px Arial';
+    context.font = '700 13px Arial';
     context.textAlign = 'center';
-    context.fillText(vehicles.length + ' INACTIVE', width - margin - 95, 117);
+    context.fillText(vehicles.length + ' INACTIVE', width - margin - 59, 68);
     context.textAlign = 'left';
 
     var x = margin;
     var y = headerHeight;
 
     context.fillStyle = '#4E2C23';
-    drawRoundedRect(context, x, y, tableWidth, tableHeaderHeight, 12);
+    drawRoundedRect(context, x, y, tableWidth, tableHeaderHeight, 8);
     context.fill();
 
     context.fillStyle = '#FFFFFF';
-    context.font = '700 22px Arial';
+    context.font = '700 13px Arial';
     var columnX = x;
     columns.forEach(function (column) {
-      context.fillText(column.label, columnX + 14, y + 39);
+      context.fillText(column.label, columnX + 8, y + 23);
       columnX += column.width;
     });
 
@@ -428,8 +430,8 @@ document.addEventListener('DOMContentLoaded', function () {
       context.fillStyle = '#FFF0E0';
       context.fillRect(x, y, tableWidth, emptyHeight);
       context.fillStyle = '#72584F';
-      context.font = '26px Arial';
-      context.fillText('Tidak ada mobil tidak aktif untuk customer ini.', x + 24, y + 64);
+      context.font = '15px Arial';
+      context.fillText('Tidak ada mobil tidak aktif untuk customer ini.', x + 14, y + 40);
     } else {
       rows.forEach(function (row, rowIndex) {
         context.fillStyle = rowIndex % 2 === 0 ? '#FFFFFF' : '#FFF8F3';
@@ -445,9 +447,9 @@ document.addEventListener('DOMContentLoaded', function () {
           var column = columns[columnIndex];
 
           context.fillStyle = '#4E2C23';
-          context.font = columnIndex === 0 ? '700 24px Arial' : '24px Arial';
-          wrapText(context, value, column.width - 28).forEach(function (line, lineIndex) {
-            context.fillText(line, columnX + 14, y + 38 + lineIndex * 30);
+          context.font = columnIndex === 0 ? '700 15px Arial' : '15px Arial';
+          wrapText(context, value, column.width - 16).forEach(function (line, lineIndex) {
+            context.fillText(line, columnX + 8, y + 23 + lineIndex * 18);
           });
 
           columnX += column.width;
@@ -458,8 +460,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     context.fillStyle = '#A08980';
-    context.font = '20px Arial';
-    context.fillText('Source: Total Kilat GPS inactive fleet data', margin, height - 54);
+    context.font = '12px Arial';
+    context.fillText('Source: Total Kilat GPS inactive fleet data', margin, height - 28);
 
     return canvas;
   }
