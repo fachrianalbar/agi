@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function appendStatusCell(row, value) {
     var cell = document.createElement('td');
     var badge = document.createElement('span');
-    badge.className = 'badge badge-danger';
+    badge.className = 'badge badge-neutral';
     badge.textContent = value || 'INACTIVE';
     cell.appendChild(badge);
     row.appendChild(cell);
