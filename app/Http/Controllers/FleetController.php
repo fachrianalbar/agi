@@ -70,6 +70,14 @@ class FleetController extends Controller
                     if (in_array($normalizedKeyword, ['no', 'tidak', 'not installed'], true)) {
                         $query->orWhere('fleets.has_fuel_sensor', false);
                     }
+
+                    if (in_array($normalizedKeyword, ['active', 'aktif'], true)) {
+                        $query->orWhere('fleets.fuel_sensor_status', 'active');
+                    }
+
+                    if (in_array($normalizedKeyword, ['inactive', 'non aktif', 'nonaktif'], true)) {
+                        $query->orWhere('fleets.fuel_sensor_status', 'inactive');
+                    }
                 });
             })
             ->addColumn(
@@ -87,6 +95,10 @@ class FleetController extends Controller
             ->addColumn(
                 'fuel_sensor_installed_at',
                 fn (Fleet $fleet) => $fleet->fuel_sensor_installed_at?->locale('id')->translatedFormat('d F Y') ?? '—',
+            )
+            ->addColumn(
+                'fuel_sensor_status',
+                fn (Fleet $fleet) => view('pages.fleets.columns.fuel_sensor_status', compact('fleet'))->render(),
             )
             ->addColumn(
                 'mileage',
@@ -122,6 +134,7 @@ class FleetController extends Controller
                 'customer_name',
                 'fuel_sensor',
                 'fuel_sensor_installed_at',
+                'fuel_sensor_status',
                 'address',
                 'mileage',
                 'vehicle_status',
@@ -132,6 +145,7 @@ class FleetController extends Controller
                 'action',
                 'vehicle_name',
                 'fuel_sensor',
+                'fuel_sensor_status',
                 'address',
                 'mileage',
                 'vehicle_status',

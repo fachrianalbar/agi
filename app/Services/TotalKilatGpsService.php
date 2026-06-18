@@ -229,9 +229,10 @@ class TotalKilatGpsService
      *
      * @return list<array{
      *     vehicle_name: string,
-     *     device_name: string,
-     *     last_update: string,
-     *     status: string
+     *     datetime: string,
+     *     latitude: float|null,
+     *     longitude: float|null,
+     *     location: string
      * }>
      */
     public function getInactiveDevices(Customer $customer): array
@@ -667,9 +668,10 @@ class TotalKilatGpsService
      * @param  array<mixed>  $payload
      * @return list<array{
      *     vehicle_name: string,
-     *     device_name: string,
-     *     last_update: string,
-     *     status: string
+     *     datetime: string,
+     *     latitude: float|null,
+     *     longitude: float|null,
+     *     location: string
      * }>
      */
     private function normalizeInactiveDevices(array $payload): array
@@ -687,39 +689,41 @@ class TotalKilatGpsService
                 'plate_no',
                 'plateNo',
             ]);
-            $deviceName = $this->stringFromKeys($items, [
-                'device_name',
-                'deviceName',
-                'device',
-                'imei',
-                'gps_imei',
-                'gpsImei',
-            ]);
 
-            if ($vehicleName !== '' || $deviceName !== '') {
-                $key = $deviceName !== '' ? $deviceName : $vehicleName;
+            if ($vehicleName !== '') {
+                $datetime = $this->stringFromKeys($items, [
+                    'datetime',
+                    'dateTime',
+                    'last_update',
+                    'lastUpdate',
+                    'last_position',
+                    'lastPosition',
+                    'last_gpsdate',
+                    'lastGpsdate',
+                    'gpsdate',
+                    'inactive_since',
+                    'inactiveSince',
+                    'inactive_date',
+                    'inactiveDate',
+                    'start_inactive',
+                    'startInactive',
+                    'expired_at',
+                    'expiredAt',
+                ]);
+                $key = "{$vehicleName}\0{$datetime}";
                 $devices[$key] = [
-                    'vehicle_name' => $vehicleName !== '' ? $vehicleName : '—',
-                    'device_name' => $deviceName !== '' ? $deviceName : '—',
-                    'last_update' => $this->stringFromKeys($items, [
-                        'last_update',
-                        'lastUpdate',
-                        'last_position',
-                        'lastPosition',
-                        'last_gpsdate',
-                        'lastGpsdate',
-                        'datetime',
-                        'gpsdate',
-                        'inactive_since',
-                        'inactiveSince',
-                        'inactive_date',
-                        'inactiveDate',
-                        'start_inactive',
-                        'startInactive',
-                        'expired_at',
-                        'expiredAt',
+                    'vehicle_name' => $vehicleName,
+                    'datetime' => $datetime,
+                    'latitude' => $this->floatFromKeys($items, ['latitude', 'lat']),
+                    'longitude' => $this->floatFromKeys($items, ['longitude', 'lng', 'lon']),
+                    'location' => $this->stringFromKeys($items, [
+                        'location',
+                        'gpsLocation',
+                        'gps_location',
+                        'address',
+                        'last_location',
+                        'lastLocation',
                     ]),
-                    'status' => 'INACTIVE',
                 ];
 
                 return;
@@ -752,6 +756,23 @@ class TotalKilatGpsService
         }
 
         return '';
+    }
+
+    /**
+     * @param  array<mixed>  $items
+     * @param  list<string>  $keys
+     */
+    private function floatFromKeys(array $items, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            $value = Arr::get($items, $key);
+
+            if (is_numeric($value)) {
+                return (float) $value;
+            }
+        }
+
+        return null;
     }
 
     /**

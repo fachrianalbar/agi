@@ -57,6 +57,7 @@
               <th data-column="customer_name" data-orderable="false">Customer</th>
               <th data-column="fuel_sensor" data-name="has_fuel_sensor" data-align="center">Fuel Sensor</th>
               <th data-column="fuel_sensor_installed_at">Installed Date</th>
+              <th data-column="fuel_sensor_status" data-name="fuel_sensor_status" data-align="center">Fuel Sensor Status</th>
               <th data-column="address" data-orderable="false">Address</th>
               <th data-column="mileage" data-orderable="false">Mileage</th>
               <th data-column="vehicle_status" data-orderable="false" data-align="center">Vehicle Status</th>

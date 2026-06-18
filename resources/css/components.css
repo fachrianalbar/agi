@@ -283,7 +283,7 @@
 }
 
 .inactive-table {
-    min-width: 920px;
+    min-width: 1080px;
 }
 
 .inactive-table th,
@@ -306,12 +306,23 @@
     height: auto;
 }
 
-.inactive-snapshot-actions {
-    margin-top: 16px;
-    padding-right: 0;
-    padding-left: 0;
+.inactive-snapshot-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
+@media (max-width: 768px) {
+    .inactive-modal-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .inactive-snapshot-header-actions {
+        justify-content: flex-start;
+    }
+}
 
 .playback-modal-shell {
     padding: 0 24px 24px;

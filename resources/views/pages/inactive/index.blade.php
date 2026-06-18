@@ -84,9 +84,10 @@
             <tr>
               <th>No</th>
               <th>Vehicle Name</th>
-              <th>Device Name</th>
-              <th>Last Update</th>
-              <th>Status</th>
+              <th>Datetime</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
+              <th>Location</th>
             </tr>
           </thead>
           <tbody data-inactive-rows></tbody>
@@ -102,7 +103,12 @@
           <span class="inactive-modal-eyebrow">Snapshot</span>
           <h3 class="inactive-modal-title" data-snapshot-customer-name>Customer</h3>
         </div>
-        <span class="badge badge-neutral" data-snapshot-total>0 Vehicles</span>
+        <div class="inactive-snapshot-header-actions">
+          <span class="badge badge-neutral" data-snapshot-total>0 Vehicles</span>
+          <button type="button" class="btn btn-secondary btn-sm" data-modal-close>Close</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-snapshot-copy disabled>Copy Image</button>
+          <button type="button" class="btn btn-primary btn-sm" data-snapshot-share disabled>Share WhatsApp</button>
+        </div>
       </div>
 
       <div class="inactive-state" data-snapshot-loading hidden>
@@ -115,12 +121,6 @@
 
       <div class="inactive-snapshot-preview" data-snapshot-preview-wrap hidden>
         <img src="" alt="Inactive fleet snapshot preview" data-snapshot-preview>
-      </div>
-
-      <div class="modal-footer inactive-snapshot-actions">
-        <button type="button" class="btn btn-secondary" data-modal-close>Close</button>
-        <button type="button" class="btn btn-secondary" data-snapshot-copy disabled>Copy Image</button>
-        <button type="button" class="btn btn-primary" data-snapshot-share disabled>Share WhatsApp</button>
       </div>
     </div>
   </x-modal>
@@ -198,15 +198,6 @@ document.addEventListener('DOMContentLoaded', function () {
     row.appendChild(cell);
   }
 
-  function appendStatusCell(row, value) {
-    var cell = document.createElement('td');
-    var badge = document.createElement('span');
-    badge.className = 'badge badge-neutral';
-    badge.textContent = value || 'INACTIVE';
-    cell.appendChild(badge);
-    row.appendChild(cell);
-  }
-
   function renderRows(vehicles) {
     if (!elements.rows) {
       return;
@@ -217,9 +208,10 @@ document.addEventListener('DOMContentLoaded', function () {
       var row = document.createElement('tr');
       appendCell(row, index + 1);
       appendCell(row, vehicle.vehicle_name);
-      appendCell(row, vehicle.device_name);
-      appendCell(row, vehicle.last_update);
-      appendStatusCell(row, vehicle.status || 'INACTIVE');
+      appendCell(row, vehicle.datetime);
+      appendCell(row, vehicle.latitude);
+      appendCell(row, vehicle.longitude);
+      appendCell(row, vehicle.location);
       elements.rows.appendChild(row);
     });
   }
@@ -298,8 +290,10 @@ document.addEventListener('DOMContentLoaded', function () {
       var row = [
         String(index + 1),
         vehicle.vehicle_name || '-',
-        vehicle.last_update || '-',
-        vehicle.status || 'INACTIVE',
+        vehicle.datetime || '-',
+        vehicle.latitude ?? '-',
+        vehicle.longitude ?? '-',
+        vehicle.location || '-',
       ];
       var lineCounts = row.map(function (value, columnIndex) {
         return wrapText(context, value, columns[columnIndex].width - 28).length;
@@ -321,9 +315,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var tableWidth = width - margin * 2;
     var columns = [
       { label: 'No', width: 80 },
-      { label: 'Vehicle Name', width: 460 },
-      { label: 'Last Update', width: 340 },
-      { label: 'Status', width: 404 },
+      { label: 'Vehicle Name', width: 310 },
+      { label: 'Datetime', width: 265 },
+      { label: 'Latitude', width: 180 },
+      { label: 'Longitude', width: 180 },
+      { label: 'Location', width: 269 },
     ];
     var rows = measureSnapshotRows(context, vehicles, columns);
     var headerHeight = 220;
@@ -402,20 +398,11 @@ document.addEventListener('DOMContentLoaded', function () {
         row.values.forEach(function (value, columnIndex) {
           var column = columns[columnIndex];
 
-          if (columnIndex === 3) {
-            context.fillStyle = '#9CA3AF';
-            drawRoundedRect(context, columnX + 14, y + 17, 128, 32, 16);
-            context.fill();
-            context.fillStyle = '#FFFFFF';
-            context.font = '700 18px Arial';
-            context.fillText(value, columnX + 30, y + 39);
-          } else {
-            context.fillStyle = '#4E2C23';
-            context.font = columnIndex === 0 ? '700 24px Arial' : '24px Arial';
-            wrapText(context, value, column.width - 28).forEach(function (line, lineIndex) {
-              context.fillText(line, columnX + 14, y + 38 + lineIndex * 30);
-            });
-          }
+          context.fillStyle = '#4E2C23';
+          context.font = columnIndex === 0 ? '700 24px Arial' : '24px Arial';
+          wrapText(context, value, column.width - 28).forEach(function (line, lineIndex) {
+            context.fillText(line, columnX + 14, y + 38 + lineIndex * 30);
+          });
 
           columnX += column.width;
         });

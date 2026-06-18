@@ -20,11 +20,16 @@ class StoreFleetRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $hasFuelSensor = $this->boolean('has_fuel_sensor');
+
         $this->merge([
-            'has_fuel_sensor' => $this->boolean('has_fuel_sensor'),
-            'fuel_sensor_installed_at' => $this->boolean('has_fuel_sensor')
+            'has_fuel_sensor' => $hasFuelSensor,
+            'fuel_sensor_installed_at' => $hasFuelSensor
                 ? $this->input('fuel_sensor_installed_at')
                 : null,
+            'fuel_sensor_status' => $hasFuelSensor
+                ? $this->input('fuel_sensor_status', 'active')
+                : 'inactive',
             'is_active' => $this->boolean('is_active'),
         ]);
     }
@@ -46,6 +51,7 @@ class StoreFleetRequest extends FormRequest
             ],
             'has_fuel_sensor' => ['boolean'],
             'fuel_sensor_installed_at' => ['nullable', Rule::requiredIf($this->boolean('has_fuel_sensor')), 'date', 'before_or_equal:today'],
+            'fuel_sensor_status' => ['required', 'string', Rule::in(['active', 'inactive'])],
             'is_active' => ['boolean'],
         ];
     }

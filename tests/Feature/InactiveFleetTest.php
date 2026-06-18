@@ -92,10 +92,11 @@ class InactiveFleetTest extends TestCase
 
             return Http::response([[
                 [
-                    'vehicleName' => 'B 1071 DFP',
-                    'deviceName' => '42976836',
-                    'lastUpdate' => '2026-06-16 10:00:00',
-                    'inactiveSince' => '2026-06-15 08:00:00',
+                    'vehicle_name' => 'KT 8612 WG',
+                    'datetime' => '2026-06-18 09:11:02',
+                    'latitude' => -2.376934,
+                    'longitude' => 116.476822,
+                    'location' => 'Binturung,Pamukan Utara,Kota Baru,Kalimantan Selatan',
                 ],
             ]]);
         });
@@ -103,10 +104,13 @@ class InactiveFleetTest extends TestCase
         $this->getJson(route('inactive.vehicles', $customer))
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.vehicle_name', 'B 1071 DFP')
-            ->assertJsonPath('data.0.device_name', '42976836')
-            ->assertJsonPath('data.0.last_update', '2026-06-16 10:00:00')
-            ->assertJsonPath('data.0.status', 'INACTIVE')
+            ->assertJsonPath('data.0.vehicle_name', 'KT 8612 WG')
+            ->assertJsonPath('data.0.datetime', '2026-06-18 09:11:02')
+            ->assertJsonPath('data.0.latitude', -2.376934)
+            ->assertJsonPath('data.0.longitude', 116.476822)
+            ->assertJsonPath('data.0.location', 'Binturung,Pamukan Utara,Kota Baru,Kalimantan Selatan')
+            ->assertJsonMissingPath('data.0.device_name')
+            ->assertJsonMissingPath('data.0.status')
             ->assertJsonMissingPath('data.0.remark')
             ->assertDontSee('inactive-token')
             ->assertDontSee($customer->password);
@@ -148,7 +152,10 @@ class InactiveFleetTest extends TestCase
             return Http::response([[
                 [
                     'vehicle_name' => 'B 1075 DFP',
-                    'device_name' => '42995737',
+                    'datetime' => '2026-06-18 09:11:02',
+                    'latitude' => -2.376934,
+                    'longitude' => 116.476822,
+                    'location' => 'Binturung,Pamukan Utara,Kota Baru,Kalimantan Selatan',
                 ],
             ]]);
         });

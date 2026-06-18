@@ -3,6 +3,7 @@
   $isEdit = isset($fleet) && $fleet->exists;
   $isActive = old('is_active', $fleet->is_active ?? true);
   $hasFuelSensor = old('has_fuel_sensor', $fleet->has_fuel_sensor ?? false);
+  $fuelSensorStatus = old('fuel_sensor_status', $fleet->fuel_sensor_status ?? 'inactive');
   $selectedCustomer = old('customer_id', $fleet->customer_id ?? '');
   $fuelSensorInstalledAt = old(
       'fuel_sensor_installed_at',
@@ -38,6 +39,16 @@
     <label for="fuel_sensor_installed_at" class="form-label">Fuel Sensor Installation Date</label>
     <input type="date" name="fuel_sensor_installed_at" id="fuel_sensor_installed_at" class="form-input @error('fuel_sensor_installed_at') form-input-error @enderror" value="{{ $fuelSensorInstalledAt }}">
     @error('fuel_sensor_installed_at') <div class="form-error">{{ $message }}</div> @enderror
+  </div>
+
+  <div class="form-group">
+    <label for="fuel_sensor_status" class="form-label">Fuel Sensor Status</label>
+    <select name="fuel_sensor_status" id="fuel_sensor_status" class="form-select @error('fuel_sensor_status') form-input-error @enderror">
+      <option value="active" @selected($fuelSensorStatus === 'active')>Active</option>
+      <option value="inactive" @selected($fuelSensorStatus === 'inactive')>Inactive</option>
+    </select>
+    <div class="form-hint">Fleets without an installed fuel sensor are saved as inactive.</div>
+    @error('fuel_sensor_status') <div class="form-error">{{ $message }}</div> @enderror
   </div>
 </div>
 

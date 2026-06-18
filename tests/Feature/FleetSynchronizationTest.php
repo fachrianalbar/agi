@@ -41,6 +41,8 @@ class FleetSynchronizationTest extends TestCase
         $this->get(route('fleets.create'))
             ->assertOk()
             ->assertSee('Fuel Sensor')
+            ->assertSee('Fuel Sensor Status')
+            ->assertSee('fuel_sensor_status', false)
             ->assertSee('fuel_sensor_installed_at', false);
 
         $this->post(route('fleets.store'), [
@@ -49,6 +51,7 @@ class FleetSynchronizationTest extends TestCase
             'device_name' => '60697058200041',
             'has_fuel_sensor' => '1',
             'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
             'is_active' => '1',
         ])
             ->assertRedirect(route('fleets.index'));
@@ -59,6 +62,7 @@ class FleetSynchronizationTest extends TestCase
             'device_name' => '60697058200041',
             'has_fuel_sensor' => 1,
             'fuel_sensor_installed_at' => '2026-06-10 00:00:00',
+            'fuel_sensor_status' => 'active',
         ]);
     }
 
@@ -88,6 +92,7 @@ class FleetSynchronizationTest extends TestCase
         $fleet->update([
             'has_fuel_sensor' => true,
             'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
         ]);
 
         $this->put(route('fleets.update', $fleet), [
@@ -96,6 +101,7 @@ class FleetSynchronizationTest extends TestCase
             'device_name' => '60697058200041',
             'has_fuel_sensor' => '0',
             'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
             'is_active' => '1',
         ])
             ->assertRedirect(route('fleets.index'));
@@ -104,6 +110,35 @@ class FleetSynchronizationTest extends TestCase
             'id' => $fleet->id,
             'has_fuel_sensor' => false,
             'fuel_sensor_installed_at' => null,
+            'fuel_sensor_status' => 'inactive',
+        ]);
+    }
+
+    public function test_fleet_fuel_sensor_status_can_be_updated(): void
+    {
+        $customer = $this->createCustomer();
+        $fleet = $this->createFleet($customer, 'B 2029 SJO', '60697058200041');
+        $fleet->update([
+            'has_fuel_sensor' => true,
+            'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
+        ]);
+
+        $this->put(route('fleets.update', $fleet), [
+            'customer_id' => $customer->id,
+            'vehicle_name' => 'B 2029 SJO',
+            'device_name' => '60697058200041',
+            'has_fuel_sensor' => '1',
+            'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'inactive',
+            'is_active' => '1',
+        ])
+            ->assertRedirect(route('fleets.index'));
+
+        $this->assertDatabaseHas('fleets', [
+            'id' => $fleet->id,
+            'has_fuel_sensor' => true,
+            'fuel_sensor_status' => 'inactive',
         ]);
     }
 
@@ -126,6 +161,7 @@ class FleetSynchronizationTest extends TestCase
             'latest_update' => '09 Juni 2026 22:44:31',
             'has_fuel_sensor' => true,
             'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
         ]);
 
         foreach ([
@@ -134,6 +170,7 @@ class FleetSynchronizationTest extends TestCase
             'AGI Customer',
             'Yes',
             '2026-06-10',
+            'Active',
             'Gajah Mada',
             '39,727.86 km',
             'Stop',
