@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var column = columns[columnIndex];
 
           if (columnIndex === 3) {
-            context.fillStyle = '#D14343';
+            context.fillStyle = '#9CA3AF';
             drawRoundedRect(context, columnX + 14, y + 17, 128, 32, 16);
             context.fill();
             context.fillStyle = '#FFFFFF';
