@@ -535,7 +535,7 @@
     box-shadow: 0 0 0 3px rgba(226, 114, 91, 0.1);
 }
 
-.form-input-error + .select2-container .select2-selection--single {
+.form-input-error+.select2-container .select2-selection--single {
     border-color: var(--color-danger);
 }
 
@@ -565,14 +565,29 @@
 .swal2-popup {
     border-radius: var(--radius-lg);
     font-family: inherit;
+    width: 28em;
+    max-width: 92vw;
+    padding: 1.5em;
 }
 
 .swal2-title {
     color: var(--color-text-primary);
+    font-size: 1.25em;
 }
 
 .swal2-html-container {
     color: var(--color-text-secondary);
+    font-size: 0.9em;
+}
+
+.swal2-actions {
+    margin-top: 1em;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+    font-size: 0.85em;
+    padding: 0.5em 1.4em;
 }
 
 @media (max-width: 768px) {
