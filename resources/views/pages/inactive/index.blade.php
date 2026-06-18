@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var fileName = 'inactive-fleet-' + sanitizeFileName(customer.name) + '.png';
-    var message = 'Snapshot mobil tidak aktif ' + customer.name + ' (' + vehicles.length + ' unit).';
+    var message = 'Informasi : Mobil tidak aktif ' + vehicles.length + ' Unit. ' + customer.name;
 
     activeSnapshot = {
       blob: blob,
