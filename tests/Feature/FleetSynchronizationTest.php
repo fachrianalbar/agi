@@ -497,6 +497,37 @@ class FleetSynchronizationTest extends TestCase
         ]);
     }
 
+    public function test_latest_positions_return_saved_snapshot_when_provider_is_unavailable(): void
+    {
+        $customer = $this->createCustomer();
+        $fleet = $this->createFleet($customer, 'B 2029 SJO', '60697058200041');
+        $fleet->update([
+            'latest_address' => 'Jalan Pangeran Antasari, Samarinda',
+            'latest_mileage' => '10,137.443 km',
+            'latest_vehicle_status' => 'Stop',
+            'latest_engine' => 'Off',
+            'latest_update' => '09 Juni 2026 20:35:07',
+        ]);
+
+        Http::fake([
+            '*' => Http::response(['message' => 'provider down'], 500),
+        ]);
+
+        $devices = [$this->positionRequestDevice($fleet)];
+        $reference = $devices[0]['ref'];
+
+        $this->postJson(route('fleets.latest-positions'), compact('devices'))
+            ->assertOk()
+            ->assertJsonPath("data.{$reference}.address.text", 'Jalan Pangeran Antasari, Samarinda')
+            ->assertJsonPath("data.{$reference}.mileage.text", '10,137.443 km')
+            ->assertJsonPath("data.{$reference}.vehicle_status.text", 'Stop')
+            ->assertJsonPath("data.{$reference}.vehicle_status.badge", 'danger')
+            ->assertJsonPath("data.{$reference}.engine.text", 'Off')
+            ->assertJsonPath("data.{$reference}.engine.badge", 'neutral')
+            ->assertJsonPath("data.{$reference}.last_update.text", '09 Juni 2026 20:35:07')
+            ->assertJsonPath("data.{$reference}.map.url", null);
+    }
+
     public function test_latest_positions_use_separate_tokens_for_each_customer(): void
     {
         $firstCustomer = $this->createCustomer();

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ExternalFleetApiException;
 use App\Models\Customer;
 use App\Models\Fleet;
 use Carbon\CarbonImmutable;
@@ -9,6 +10,7 @@ use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 
 class FleetService
@@ -158,17 +160,30 @@ class FleetService
                 continue;
             }
 
-            $positions = $this->gpsService->getLatestPositions(
-                $customer,
-                $customerFleets->pluck('device_name')->all(),
-            );
+            try {
+                $positions = $this->gpsService->getLatestPositions(
+                    $customer,
+                    $customerFleets->pluck('device_name')->all(),
+                );
+            } catch (ExternalFleetApiException $exception) {
+                Log::warning('Latest fleet positions failed for a customer; using saved snapshots.', [
+                    'customer_id' => $customer->id,
+                    'reason' => $exception->getMessage(),
+                ]);
+
+                foreach ($customerFleets as $fleet) {
+                    $result[$this->positionReference($fleet)] = $this->cachedPositionSnapshot($fleet);
+                }
+
+                continue;
+            }
 
             foreach ($customerFleets as $fleet) {
                 $reference = $this->positionReference($fleet);
                 $position = $positions[$fleet->device_name] ?? null;
 
                 if (! $position) {
-                    $result[$reference] = $this->unavailablePosition();
+                    $result[$reference] = $this->cachedPositionSnapshot($fleet);
 
                     continue;
                 }
@@ -189,6 +204,32 @@ class FleetService
         }
 
         return $result;
+    }
+
+    /**
+     * Get presentation-ready saved latest position data.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function cachedPositionSnapshot(Fleet $fleet): array
+    {
+        $vehicleStatus = trim((string) $fleet->latest_vehicle_status);
+        $engine = trim((string) $fleet->latest_engine);
+
+        return [
+            'mileage' => $this->snapshotTextValue($fleet->latest_mileage),
+            'vehicle_status' => [
+                ...$this->snapshotTextValue($vehicleStatus),
+                'badge' => $this->vehicleStatusBadge($vehicleStatus),
+            ],
+            'engine' => [
+                ...$this->snapshotTextValue($engine),
+                'badge' => str($engine)->lower()->toString() === 'on' ? 'success' : 'neutral',
+            ],
+            'last_update' => $this->snapshotTextValue($fleet->latest_update),
+            'address' => $this->snapshotTextValue($fleet->latest_address),
+            'map' => ['url' => null, 'latitude' => null, 'longitude' => null],
+        ];
     }
 
     /**
@@ -268,18 +309,27 @@ class FleetService
     }
 
     /**
-     * @return array<string, array<string, mixed>>
+     * @return array{text: string, state?: string}
      */
-    private function unavailablePosition(): array
+    private function snapshotTextValue(?string $value): array
     {
-        return [
-            'mileage' => ['text' => 'Unavailable', 'state' => 'error'],
-            'vehicle_status' => ['text' => 'Unavailable', 'badge' => 'neutral'],
-            'engine' => ['text' => 'Unavailable', 'badge' => 'neutral'],
-            'last_update' => ['text' => 'Unavailable', 'state' => 'error'],
-            'address' => ['text' => 'Unavailable', 'state' => 'error'],
-            'map' => ['url' => null, 'latitude' => null, 'longitude' => null],
-        ];
+        $text = trim((string) $value);
+
+        if ($text === '') {
+            return ['text' => 'Unavailable', 'state' => 'error'];
+        }
+
+        return ['text' => $text];
+    }
+
+    private function vehicleStatusBadge(string $status): string
+    {
+        return match (str($status)->lower()->toString()) {
+            'running' => 'success',
+            'stop' => 'danger',
+            'idle' => 'warning',
+            default => 'neutral',
+        };
     }
 
     /**

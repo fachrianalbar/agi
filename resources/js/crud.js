@@ -391,11 +391,42 @@ async function deleteRecord(button, page, table) {
     }
 }
 
+function enrichmentFallback(element) {
+    if (!element.dataset.enrichmentFallback) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(element.dataset.enrichmentFallback);
+    } catch {
+        return null;
+    }
+}
+
+function applyEnrichmentFieldValue(element, value) {
+    element.classList.remove('enrichment-loading', 'enrichment-error', ...badgeClasses);
+
+    if (!value || typeof value.text !== 'string') {
+        element.textContent = 'Unavailable';
+        element.classList.add('enrichment-error');
+
+        return;
+    }
+
+    element.textContent = value.text;
+
+    if (value.badge) {
+        element.classList.add('badge', `badge-${value.badge}`);
+    }
+
+    if (value.state === 'error') {
+        element.classList.add('enrichment-error');
+    }
+}
+
 function setEnrichmentUnavailable(tableElement) {
     tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
-        element.textContent = 'Unavailable';
-        element.classList.remove('enrichment-loading', ...badgeClasses);
-        element.classList.add('enrichment-error');
+        applyEnrichmentFieldValue(element, enrichmentFallback(element));
     });
 
     tableElement.querySelectorAll('[data-enrichment-link]').forEach((link) => {
@@ -418,26 +449,9 @@ function setEnrichmentUnavailable(tableElement) {
 function applyTableEnrichment(tableElement, data) {
     tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
         const record = data[element.dataset.enrichmentRef];
-        const value = record?.[element.dataset.enrichmentField];
+        const value = record?.[element.dataset.enrichmentField] || enrichmentFallback(element);
 
-        element.classList.remove('enrichment-loading', 'enrichment-error', ...badgeClasses);
-
-        if (!value || typeof value.text !== 'string') {
-            element.textContent = 'Unavailable';
-            element.classList.add('enrichment-error');
-
-            return;
-        }
-
-        element.textContent = value.text;
-
-        if (value.badge) {
-            element.classList.add('badge', `badge-${value.badge}`);
-        }
-
-        if (value.state === 'error') {
-            element.classList.add('enrichment-error');
-        }
+        applyEnrichmentFieldValue(element, value);
     });
 
     tableElement.querySelectorAll('[data-enrichment-link]').forEach((link) => {
@@ -508,8 +522,14 @@ async function loadTableEnrichment(tableElement, page) {
     }
 
     tableElement.querySelectorAll('[data-enrichment-field]').forEach((element) => {
-        element.textContent = 'Loading...';
-        element.classList.remove('enrichment-error', ...badgeClasses);
+        const hasSnapshot = element.dataset.enrichmentHasSnapshot === 'true';
+
+        if (!hasSnapshot) {
+            element.textContent = 'Loading...';
+            element.classList.remove(...badgeClasses);
+        }
+
+        element.classList.remove('enrichment-error');
         element.classList.add('enrichment-loading');
     });
 

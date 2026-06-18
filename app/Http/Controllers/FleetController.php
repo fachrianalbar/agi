@@ -298,6 +298,7 @@ class FleetController extends Controller
         return view('pages.fleets.columns.position', [
             'field' => $field,
             'fleet' => $fleet,
+            'position' => $this->fleetService->cachedPositionSnapshot($fleet),
             'positionReference' => $this->fleetService->positionReference($fleet),
         ])->render();
     }

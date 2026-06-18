@@ -40,8 +40,8 @@ return [
         'grant_type' => env('TOTAL_KILAT_GPS_GRANT_TYPE', 'totalkilatgps'),
         'connect_timeout' => (int) env('TOTAL_KILAT_GPS_CONNECT_TIMEOUT', 5),
         'timeout' => (int) env('TOTAL_KILAT_GPS_TIMEOUT', 20),
-        'position_cache_seconds' => (int) env('TOTAL_KILAT_GPS_POSITION_CACHE_SECONDS', 20),
-        'position_concurrency' => (int) env('TOTAL_KILAT_GPS_POSITION_CONCURRENCY', 10),
+        'position_cache_seconds' => (int) env('TOTAL_KILAT_GPS_POSITION_CACHE_SECONDS', 60),
+        'position_concurrency' => (int) env('TOTAL_KILAT_GPS_POSITION_CONCURRENCY', 5),
         'resolve_addresses_on_refresh' => (bool) env('TOTAL_KILAT_GPS_RESOLVE_ADDRESSES_ON_REFRESH', true),
     ],
 
