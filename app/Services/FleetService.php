@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Number;
 
 class FleetService
 {
@@ -217,7 +216,7 @@ class FleetService
         $engine = trim((string) $fleet->latest_engine);
 
         return [
-            'mileage' => $this->snapshotTextValue($fleet->latest_mileage),
+            'mileage' => $this->mileageSnapshotValue($fleet->latest_mileage),
             'vehicle_status' => [
                 ...$this->snapshotTextValue($vehicleStatus),
                 'badge' => $this->vehicleStatusBadge($vehicleStatus),
@@ -264,7 +263,7 @@ class FleetService
 
         return [
             'mileage' => [
-                'text' => Number::format($position['mileage'], maxPrecision: 3).' km',
+                'text' => $this->formatMileage($position['mileage']),
             ],
             'vehicle_status' => [
                 'text' => $statusLabel,
@@ -320,6 +319,34 @@ class FleetService
         }
 
         return ['text' => $text];
+    }
+
+    /**
+     * Format mileage as a whole number of thousands to keep the fleet listing concise.
+     */
+    private function formatMileage(float $mileage): string
+    {
+        return floor($mileage / 1000).' ribu km';
+    }
+
+    /**
+     * Format legacy saved mileage values that still contain a comma-separated value.
+     *
+     * @return array{text: string, state?: string}
+     */
+    private function mileageSnapshotValue(?string $value): array
+    {
+        $snapshot = $this->snapshotTextValue($value);
+
+        if (($snapshot['state'] ?? null) === 'error') {
+            return $snapshot;
+        }
+
+        if (preg_match('/^([\d,]+(?:\.\d+)?)\s*km$/i', $snapshot['text'], $matches) !== 1) {
+            return $snapshot;
+        }
+
+        return ['text' => $this->formatMileage((float) str_replace(',', '', $matches[1]))];
     }
 
     private function vehicleStatusBadge(string $status): string

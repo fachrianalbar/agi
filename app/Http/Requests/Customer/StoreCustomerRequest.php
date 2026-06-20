@@ -33,7 +33,7 @@ class StoreCustomerRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:200'],
-            'username' => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('customers', 'username')],
+            'username' => ['required', 'string', 'max:100', Rule::unique('customers', 'username')],
             'email' => ['required', 'email', 'max:200', Rule::unique('customers', 'email')],
             'password' => ['required'],
             'phone' => ['nullable', 'string', 'max:30'],

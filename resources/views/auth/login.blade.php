@@ -52,11 +52,69 @@
     </script>
     <link rel="stylesheet"
         href="{{ asset('assets/css/style.css') }}?v={{ filemtime(public_path('assets/css/style.css')) }}">
+    <style>
+        @media (max-width: 640px) {
+            .login-page-shell {
+                align-items: flex-start !important;
+                padding: 16px !important;
+            }
+
+            .login-card {
+                flex-direction: column !important;
+                min-height: 0 !important;
+                max-width: 480px !important;
+            }
+
+            .login-brand-panel {
+                flex: none !important;
+                gap: 24px;
+                justify-content: flex-start !important;
+                padding: 28px 24px !important;
+            }
+
+            .login-brand-logo {
+                margin-bottom: 22px !important;
+            }
+
+            .login-brand-panel h1 {
+                font-size: 24px !important;
+            }
+
+            .login-form-panel {
+                padding: 32px 24px !important;
+            }
+
+            .login-form-content {
+                max-width: none !important;
+            }
+
+            .login-form-header {
+                margin-bottom: 28px !important;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .login-page-shell {
+                padding: 12px !important;
+            }
+
+            .login-brand-panel,
+            .login-form-panel {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+
+            .login-brand-panel p {
+                line-height: 1.5 !important;
+            }
+        }
+    </style>
 </head>
 
-<body style="background: linear-gradient(135deg, #FFF4EC 0%, #FFDAB9 40%, #FDE8E3 100%); min-height: 100vh;">
+<body class="login-page" style="background: linear-gradient(135deg, #FFF4EC 0%, #FFDAB9 40%, #FDE8E3 100%); min-height: 100vh;">
 
     <div
+        class="login-page-shell"
         style="
     display: flex;
     min-height: 100vh;
@@ -66,6 +124,7 @@
   ">
         {{-- Login Card Container --}}
         <div
+            class="login-card"
             style="
       display: flex;
       width: 100%;
@@ -78,6 +137,7 @@
     ">
             {{-- Left Panel — Branding --}}
             <div
+                class="login-brand-panel"
                 style="
         flex: 0 0 45%;
         background: linear-gradient(160deg, #4E2C23 0%, #6B3F33 60%, #3A1F18 100%);
@@ -124,8 +184,9 @@
                 </div>
 
                 {{-- Logo & Brand --}}
-                <div style="position: relative; z-index: 1;">
+                <div class="login-brand-content" style="position: relative; z-index: 1;">
                     <div
+                        class="login-brand-logo"
                         style="
             display: flex;
             align-items: center;
@@ -183,45 +244,11 @@
                         Sign in to manage your AI agents and monitor fleet operations across your tenant.</p>
                 </div>
 
-                {{-- Footer quote --}}
-                <div style="position: relative; z-index: 1;">
-                    <div
-                        style="
-            display: flex;
-            gap: 12px;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-          ">
-                        <div
-                            style="
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-              background: linear-gradient(135deg, #E2725B, #FFDAB9);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              flex-shrink: 0;
-            ">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF"
-                                stroke-width="2.5">
-                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <div style="font-size: 13px; color: rgba(255, 255, 255, 0.75); font-weight: 500;">
-                                Multi-tenant ready</div>
-                            <div style="font-size: 11px; color: rgba(255, 255, 255, 0.4);">Your access is scoped to
-                                assigned customers automatically.</div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {{-- Right Panel — Login Form --}}
             <div
+                class="login-form-panel"
                 style="
         flex: 1;
         padding: 48px 44px;
@@ -229,8 +256,8 @@
         flex-direction: column;
         justify-content: center;
       ">
-                <div style="max-width: 380px; width: 100%; margin: 0 auto;">
-                    <div style="margin-bottom: 36px;">
+                <div class="login-form-content" style="max-width: 380px; width: 100%; margin: 0 auto;">
+                    <div class="login-form-header" style="margin-bottom: 36px;">
                         <h2
                             style="
               font-size: 22px;
@@ -461,7 +488,7 @@
                     </div>
 
                     {{-- Feature pills --}}
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                    <div class="login-feature-pills" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
                         <span
                             style="
               font-size: 11px;

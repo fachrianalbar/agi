@@ -155,7 +155,7 @@ class FleetSynchronizationTest extends TestCase
 
         $fleet->update([
             'latest_address' => 'Jalan Gajah Mada, Samarinda, Indonesia',
-            'latest_mileage' => '39,727.86 km',
+            'latest_mileage' => '39 ribu km',
             'latest_vehicle_status' => 'Stop',
             'latest_engine' => 'Off',
             'latest_update' => '09 Juni 2026 22:44:31',
@@ -172,7 +172,7 @@ class FleetSynchronizationTest extends TestCase
             '2026-06-10',
             'Active',
             'Gajah Mada',
-            '39,727.86 km',
+            '39 ribu km',
             'Stop',
             'Off',
             '09 Juni 2026',
@@ -490,7 +490,7 @@ class FleetSynchronizationTest extends TestCase
         $this->assertDatabaseHas('fleets', [
             'id' => $firstFleet->id,
             'latest_address' => 'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
-            'latest_mileage' => '10,137.443 km',
+            'latest_mileage' => '10 ribu km',
             'latest_vehicle_status' => 'Stop',
             'latest_engine' => 'Off',
             'latest_update' => '09 Juni 2026 20:35:07',
@@ -519,7 +519,7 @@ class FleetSynchronizationTest extends TestCase
         $this->postJson(route('fleets.latest-positions'), compact('devices'))
             ->assertOk()
             ->assertJsonPath("data.{$reference}.address.text", 'Jalan Pangeran Antasari, Samarinda')
-            ->assertJsonPath("data.{$reference}.mileage.text", '10,137.443 km')
+            ->assertJsonPath("data.{$reference}.mileage.text", '10 ribu km')
             ->assertJsonPath("data.{$reference}.vehicle_status.text", 'Stop')
             ->assertJsonPath("data.{$reference}.vehicle_status.badge", 'danger')
             ->assertJsonPath("data.{$reference}.engine.text", 'Off')
