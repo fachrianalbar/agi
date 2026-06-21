@@ -96,7 +96,7 @@
             required
           >
             <option value="">Select a customer...</option>
-            @foreach($customers as $customer)
+            @foreach($syncCustomers as $customer)
               <option value="{{ $customer->id }}">
                 {{ $customer->name }} ({{ $customer->username }})
               </option>
@@ -112,6 +112,26 @@
         <button type="submit" class="btn btn-primary" data-loading-text="Synchronizing...">
           Synchronize
         </button>
+      </div>
+    </form>
+  </x-modal>
+
+  <x-modal id="fleetEditModal" title="Edit Fleet" size="xl">
+    <form
+      method="POST"
+      action=""
+      class="js-async-form js-fleet-edit-form"
+      data-success-title="Fleet updated"
+      data-loading-text="Saving..."
+    >
+      @csrf
+      @method('PUT')
+      <div class="modal-body">
+        @include('pages.fleets._form', ['fleet' => null])
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
       </div>
     </form>
   </x-modal>

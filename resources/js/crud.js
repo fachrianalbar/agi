@@ -337,6 +337,43 @@ function initializeMapModals(page) {
     });
 }
 
+function setCheckboxValue(form, name, checked) {
+    const checkbox = form.querySelector(`input[type="checkbox"][name="${name}"]`);
+
+    if (checkbox) {
+        checkbox.checked = checked;
+    }
+}
+
+function initializeFleetEditModal(page) {
+    const modal = page.querySelector('#fleetEditModal');
+    const form = modal?.querySelector('.js-fleet-edit-form');
+
+    if (!modal || !form) {
+        return;
+    }
+
+    page.addEventListener('click', (event) => {
+        const button = event.target.closest('.js-edit-fleet');
+
+        if (!button) {
+            return;
+        }
+
+        form.action = button.dataset.updateUrl;
+        form.querySelector('[name="vehicle_name"]').value = button.dataset.vehicleName || '';
+        form.querySelector('[name="device_name"]').value = button.dataset.deviceName || '';
+        form.querySelector('[name="fuel_sensor_installed_at"]').value = button.dataset.fuelSensorInstalledAt || '';
+        form.querySelector('[name="fuel_sensor_status"]').value = button.dataset.fuelSensorStatus || 'inactive';
+        setCheckboxValue(form, 'has_fuel_sensor', button.dataset.hasFuelSensor === 'true');
+        setCheckboxValue(form, 'is_active', button.dataset.isActive === 'true');
+
+        const customerSelect = form.querySelector('[name="customer_id"]');
+        $(customerSelect).val(button.dataset.customerId || '').trigger('change');
+        openModal(modal);
+    });
+}
+
 async function deleteRecord(button, page, table) {
     const recordLabel = button.dataset.recordLabel || 'record';
     const recordName = button.dataset.recordName || '';
@@ -670,6 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showFlashMessage(page);
         initializeModals(page);
         initializeMapModals(page);
+        initializeFleetEditModal(page);
         initializeDependentSelects(page);
 
         const tables = Array.from(page.querySelectorAll('.js-data-table')).map((table) => (

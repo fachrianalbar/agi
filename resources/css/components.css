@@ -107,6 +107,10 @@
     max-width: 1040px;
 }
 
+.modal.modal-xl {
+    max-width: min(1280px, calc(100vw - 48px));
+}
+
 .map-modal-shell {
     padding: 0 24px 24px;
 }

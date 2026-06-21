@@ -30,7 +30,11 @@ class FleetController extends Controller
     public function index(): View
     {
         return view('pages.fleets.index', [
-            'customers' => $this->fleetService->getSyncCustomers(),
+            'syncCustomers' => $this->fleetService->getSyncCustomers(),
+            'customers' => Customer::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -265,13 +269,19 @@ class FleetController extends Controller
     /**
      * Update the specified fleet.
      */
-    public function update(UpdateFleetRequest $request, Fleet $fleet): RedirectResponse
+    public function update(UpdateFleetRequest $request, Fleet $fleet): RedirectResponse|JsonResponse
     {
         $this->fleetService->update($fleet, $request->validated());
 
+        $message = "Fleet \"{$fleet->fresh()->vehicle_name}\" updated successfully.";
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message]);
+        }
+
         return redirect()
             ->route('fleets.index')
-            ->with('success', "Fleet \"{$fleet->fresh()->vehicle_name}\" updated successfully.");
+            ->with('success', $message);
     }
 
     /**
