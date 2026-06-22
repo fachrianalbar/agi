@@ -141,6 +141,28 @@ class FleetTransactionController extends Controller
             ->with('success', $message);
     }
 
+    public function recalculateEfficiency(Request $request): JsonResponse|RedirectResponse
+    {
+        $summary = $this->fleetTransactionService->recalculateEfficiencyMetrics();
+
+        $message = sprintf(
+            'Perhitungan ulang selesai: %d diperbarui, %d tidak berubah.',
+            $summary['updated'],
+            $summary['unchanged'],
+        );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'data' => $summary,
+            ]);
+        }
+
+        return redirect()
+            ->route('fleet-transactions.index')
+            ->with('success', $message);
+    }
+
     public function edit(FleetTransaction $fleetTransaction): View
     {
         return view('pages.fleet-transactions.edit', [

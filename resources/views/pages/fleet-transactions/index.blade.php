@@ -15,6 +15,16 @@
                     <p class="page-header-subtitle">Upload and manage daily vehicle fuel performance transactions</p>
                 </div>
                 <div class="page-header-actions">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                        data-modal-target="fleetTransactionRecalculateModal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 7h-5V2" />
+                            <path d="M4 17h5v5" />
+                            <path d="M5.5 9a7 7 0 0 1 11.8-3L20 7" />
+                            <path d="M4 17l2.7 1A7 7 0 0 0 18.5 15" />
+                        </svg>
+                        Hitung Ulang KM/L
+                    </button>
                     <button type="button" class="btn btn-secondary btn-sm" data-modal-target="fleetTransactionImportModal">
                         <x-menu-icon name="receipt" />
                         Upload File
@@ -86,6 +96,28 @@
                     <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
                     <button type="submit" class="btn btn-primary" data-loading-text="Importing...">
                         Import Transactions
+                    </button>
+                </div>
+            </form>
+        </x-modal>
+
+        <x-modal id="fleetTransactionRecalculateModal" title="Hitung Ulang Efisiensi">
+            <form method="POST" action="{{ route('fleet-transactions.recalculate-efficiency') }}" class="js-async-form"
+                data-success-title="Perhitungan ulang selesai">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-sm text-gray-600">
+                        Sistem akan menghitung ulang nilai <strong>KM/L</strong> dan <strong>L/KM</strong> untuk semua data transaksi
+                        yang sudah ter-upload.
+                    </p>
+                    <div class="form-hint" style="margin-top: 10px;">
+                        Proses ini aman dan tidak menghapus data transaksi.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Batal</button>
+                    <button type="submit" class="btn btn-primary" data-loading-text="Menghitung ulang...">
+                        Mulai Hitung Ulang
                     </button>
                 </div>
             </form>

@@ -82,5 +82,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('fleet-histories', [FleetHistoryController::class, 'generate'])->name('fleet-histories.generate');
     Route::get('fleet-transactions/data', [FleetTransactionController::class, 'data'])->name('fleet-transactions.data');
     Route::post('fleet-transactions/import', [FleetTransactionController::class, 'import'])->name('fleet-transactions.import');
+    Route::post('fleet-transactions/recalculate-efficiency', [FleetTransactionController::class, 'recalculateEfficiency'])
+        ->name('fleet-transactions.recalculate-efficiency');
     Route::resource('fleet-transactions', FleetTransactionController::class)->except('show');
 }); // end auth middleware

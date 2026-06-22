@@ -100,6 +100,58 @@ class FleetTransactionService
     }
 
     /**
+     * Recalculate efficiency metrics for existing non-deleted transaction rows.
+     *
+     * @return array{updated: int, unchanged: int, total: int}
+     */
+    public function recalculateEfficiencyMetrics(): array
+    {
+        $updated = 0;
+        $unchanged = 0;
+
+        FleetTransaction::query()
+            ->select([
+                'id',
+                'odometer_km',
+                'usage_l',
+                'cost_rp',
+                'km_per_l',
+                'l_per_km',
+                'cost_per_km',
+            ])
+            ->chunkById(500, function (Collection $transactions) use (&$updated, &$unchanged): void {
+                foreach ($transactions as $transaction) {
+                    $kmPerL = $this->calculateKmPerLiter((float) $transaction->odometer_km, (float) $transaction->usage_l);
+                    $lPerKm = $this->calculateLitersPerKm((float) $transaction->usage_l, (float) $transaction->odometer_km);
+                    $costPerKm = $this->calculateCostPerKm((float) $transaction->cost_rp, (float) $transaction->odometer_km);
+
+                    $isChanged = ! $this->sameNullableFloat($transaction->km_per_l, $kmPerL)
+                        || ! $this->sameNullableFloat($transaction->l_per_km, $lPerKm)
+                        || ! $this->sameNullableFloat($transaction->cost_per_km, $costPerKm);
+
+                    if (! $isChanged) {
+                        $unchanged++;
+                        continue;
+                    }
+
+                    $transaction->update([
+                        'km_per_l' => $kmPerL,
+                        'l_per_km' => $lPerKm,
+                        'cost_per_km' => $costPerKm,
+                    ]);
+
+                    $updated++;
+                }
+            });
+
+        return [
+            'updated' => $updated,
+            'unchanged' => $unchanged,
+            'total' => $updated + $unchanged,
+        ];
+    }
+
+    /**
      * Import a Total Kilat GPS daily performance HTML/XLS export.
      *
      * @return array{created: int, updated: int, unchanged: int, skipped: int}
@@ -440,5 +492,18 @@ class FleetTransactionService
         }
 
         return round($costRp / $odometerKm, 4);
+    }
+
+    private function sameNullableFloat(mixed $currentValue, ?float $nextValue): bool
+    {
+        if ($currentValue === null && $nextValue === null) {
+            return true;
+        }
+
+        if ($currentValue === null || $nextValue === null) {
+            return false;
+        }
+
+        return round((float) $currentValue, 4) === round($nextValue, 4);
     }
 }
