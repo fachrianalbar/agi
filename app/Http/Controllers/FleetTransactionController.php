@@ -214,7 +214,7 @@ class FleetTransactionController extends Controller
     private function formatEfficiencyStatus(FleetTransaction $transaction): string
     {
         if ($transaction->fleet?->has_fuel_sensor !== true) {
-            return '<span class="badge text-bg-secondary">Fuel Sensor belum terpasang</span>';
+            return '<span class="badge badge-neutral"><span class="badge-dot"></span>Fuel Sensor belum terpasang</span>';
         }
 
         $kmPerLiter = $transaction->km_per_l;
@@ -226,9 +226,9 @@ class FleetTransactionController extends Controller
         $val = (float) $kmPerLiter;
 
         if ($val >= 2.5 && $val <= 4.5) {
-            return '<span class="badge text-bg-success">Wajar</span>';
+            return '<span class="badge badge-success"><span class="badge-dot"></span>Wajar</span>';
         }
 
-        return '<span class="badge text-bg-danger">Tidak Wajar</span>';
+        return '<span class="badge badge-danger"><span class="badge-dot"></span>Tidak Wajar</span>';
     }
 }
