@@ -57,20 +57,23 @@ class FleetTransactionController extends Controller
             })
             ->addColumn(
                 'fleet_name',
-                fn (FleetTransaction $transaction) => view('pages.fleet-transactions.columns.fleet', compact('transaction'))->render(),
+                fn(FleetTransaction $transaction) => view('pages.fleet-transactions.columns.fleet', compact('transaction'))->render(),
             )
-            ->addColumn('customer_name', fn (FleetTransaction $transaction) => $transaction->fleet?->customer?->name ?? '—')
-            ->addColumn('transaction_date', fn (FleetTransaction $transaction) => $transaction->transaction_date?->locale('id')->translatedFormat('d F Y') ?? '—')
-            ->addColumn('odometer_km', fn (FleetTransaction $transaction) => $this->formatNumber($transaction->odometer_km, 2).' km')
-            ->addColumn('usage_l', fn (FleetTransaction $transaction) => $this->formatNumber($transaction->usage_l, 2).' L')
-            ->addColumn('cost_rp', fn (FleetTransaction $transaction) => 'Rp '.$this->formatNumber($transaction->cost_rp, 2))
-            ->addColumn('refuel_l', fn (FleetTransaction $transaction) => $this->formatNullableNumber($transaction->refuel_l, 3, ' L'))
-            ->addColumn('running_duration', fn (FleetTransaction $transaction) => $this->formatDuration($transaction->running_duration_seconds))
-            ->addColumn('idle_duration', fn (FleetTransaction $transaction) => $this->formatDuration($transaction->idle_duration_seconds))
-            ->addColumn('stop_duration', fn (FleetTransaction $transaction) => $this->formatDuration($transaction->stop_duration_seconds))
+            ->addColumn('customer_name', fn(FleetTransaction $transaction) => $transaction->fleet?->customer?->name ?? '—')
+            ->addColumn('transaction_date', fn(FleetTransaction $transaction) => $transaction->transaction_date?->locale('id')->translatedFormat('d F Y') ?? '—')
+            ->addColumn('odometer_km', fn(FleetTransaction $transaction) => $this->formatNumber($transaction->odometer_km, 2) . ' km')
+            ->addColumn('usage_l', fn(FleetTransaction $transaction) => $this->formatNumber($transaction->usage_l, 2) . ' L')
+            ->addColumn('cost_rp', fn(FleetTransaction $transaction) => 'Rp ' . $this->formatNumber($transaction->cost_rp, 2))
+            ->addColumn('refuel_l', fn(FleetTransaction $transaction) => $this->formatNullableNumber($transaction->refuel_l, 2, ' L'))
+            ->addColumn('km_per_l', fn(FleetTransaction $transaction) => $this->formatNullableNumber($transaction->km_per_l, 2, ' km/L'))
+            ->addColumn('l_per_km', fn(FleetTransaction $transaction) => $this->formatNullableNumber($transaction->l_per_km, 2, ' L/km'))
+            ->addColumn('status', fn(FleetTransaction $transaction) => $this->formatEfficiencyStatus($transaction->km_per_l))
+            ->addColumn('running_duration', fn(FleetTransaction $transaction) => $this->formatDuration($transaction->running_duration_seconds))
+            ->addColumn('idle_duration', fn(FleetTransaction $transaction) => $this->formatDuration($transaction->idle_duration_seconds))
+            ->addColumn('stop_duration', fn(FleetTransaction $transaction) => $this->formatDuration($transaction->stop_duration_seconds))
             ->addColumn(
                 'action',
-                fn (FleetTransaction $transaction) => view('pages.fleet-transactions.columns.action', compact('transaction'))->render(),
+                fn(FleetTransaction $transaction) => view('pages.fleet-transactions.columns.action', compact('transaction'))->render(),
             )
             ->only([
                 'action',
@@ -81,11 +84,14 @@ class FleetTransactionController extends Controller
                 'usage_l',
                 'cost_rp',
                 'refuel_l',
+                'km_per_l',
+                'l_per_km',
+                'status',
                 'running_duration',
                 'idle_duration',
                 'stop_duration',
             ])
-            ->rawColumns(['action', 'fleet_name'])
+            ->rawColumns(['action', 'fleet_name', 'status'])
             ->toJson();
     }
 
@@ -180,7 +186,7 @@ class FleetTransactionController extends Controller
 
     private function formatNumber(mixed $value, int $precision): string
     {
-        return number_format((float) $value, $precision);
+        return number_format((float) $value, $precision, ',', '.');
     }
 
     private function formatNullableNumber(mixed $value, int $precision, string $suffix = ''): string
@@ -189,7 +195,7 @@ class FleetTransactionController extends Controller
             return '—';
         }
 
-        return $this->formatNumber($value, $precision).$suffix;
+        return $this->formatNumber($value, $precision) . $suffix;
     }
 
     private function formatDuration(?int $seconds): string
@@ -203,5 +209,20 @@ class FleetTransactionController extends Controller
         $remainingSeconds = $seconds % 60;
 
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
+    }
+
+    private function formatEfficiencyStatus(mixed $kmPerLiter): string
+    {
+        if ($kmPerLiter === null || $kmPerLiter === '') {
+            return '—';
+        }
+
+        $val = (float) $kmPerLiter;
+
+        if ($val >= 2.5 && $val <= 4.5) {
+            return '<span class="badge text-bg-success">Wajar</span>';
+        }
+
+        return '<span class="badge text-bg-danger">Tidak Wajar</span>';
     }
 }

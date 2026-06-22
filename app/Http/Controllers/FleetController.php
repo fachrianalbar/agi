@@ -35,7 +35,7 @@ class FleetController extends Controller
             'syncCustomers' => $this->fleetService->getSyncCustomers($customerId),
             'customers' => Customer::query()
                 ->where('is_active', true)
-                ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
+                ->when($customerId !== null, fn(Builder $query) => $query->whereKey($customerId))
                 ->orderBy('name')
                 ->get(),
         ]);
@@ -46,7 +46,19 @@ class FleetController extends Controller
      */
     public function data(): JsonResponse
     {
-        return DataTables::eloquent($this->fleetService->getDataTableQuery($this->customerScope()))
+        $query = $this->fleetService->getDataTableQuery($this->customerScope());
+
+        $hasFuelSensor = request()->input('has_fuel_sensor');
+        if ($hasFuelSensor !== null && $hasFuelSensor !== '') {
+            $query->where('fleets.has_fuel_sensor', $hasFuelSensor === '1');
+        }
+
+        $fuelSensorStatus = request()->input('fuel_sensor_status');
+        if ($fuelSensorStatus !== null && $fuelSensorStatus !== '') {
+            $query->where('fleets.fuel_sensor_status', $fuelSensorStatus);
+        }
+
+        return DataTables::eloquent($query)
             ->filter(function (Builder $query): void {
                 $keyword = trim((string) request()->input('search.value'));
 
@@ -89,47 +101,47 @@ class FleetController extends Controller
             })
             ->addColumn(
                 'vehicle_name',
-                fn (Fleet $fleet) => view('pages.fleets.columns.vehicle_name', compact('fleet'))->render(),
+                fn(Fleet $fleet) => view('pages.fleets.columns.vehicle_name', compact('fleet'))->render(),
             )
             ->addColumn(
                 'customer_name',
-                fn (Fleet $fleet) => $fleet->customer?->name ?? '—',
+                fn(Fleet $fleet) => $fleet->customer?->name ?? '—',
             )
             ->addColumn(
                 'fuel_sensor',
-                fn (Fleet $fleet) => view('pages.fleets.columns.fuel_sensor', compact('fleet'))->render(),
+                fn(Fleet $fleet) => view('pages.fleets.columns.fuel_sensor', compact('fleet'))->render(),
             )
             ->addColumn(
                 'fuel_sensor_installed_at',
-                fn (Fleet $fleet) => $fleet->fuel_sensor_installed_at?->locale('id')->translatedFormat('d F Y') ?? '—',
+                fn(Fleet $fleet) => $fleet->fuel_sensor_installed_at?->locale('id')->translatedFormat('d F Y') ?? '—',
             )
             ->addColumn(
                 'fuel_sensor_status',
-                fn (Fleet $fleet) => view('pages.fleets.columns.fuel_sensor_status', compact('fleet'))->render(),
+                fn(Fleet $fleet) => view('pages.fleets.columns.fuel_sensor_status', compact('fleet'))->render(),
             )
             ->addColumn(
                 'mileage',
-                fn (Fleet $fleet) => $this->positionCell($fleet, 'mileage'),
+                fn(Fleet $fleet) => $this->positionCell($fleet, 'mileage'),
             )
             ->addColumn(
                 'address',
-                fn (Fleet $fleet) => $this->positionCell($fleet, 'address'),
+                fn(Fleet $fleet) => $this->positionCell($fleet, 'address'),
             )
             ->addColumn(
                 'vehicle_status',
-                fn (Fleet $fleet) => $this->positionCell($fleet, 'vehicle_status'),
+                fn(Fleet $fleet) => $this->positionCell($fleet, 'vehicle_status'),
             )
             ->addColumn(
                 'engine',
-                fn (Fleet $fleet) => $this->positionCell($fleet, 'engine'),
+                fn(Fleet $fleet) => $this->positionCell($fleet, 'engine'),
             )
             ->addColumn(
                 'last_update',
-                fn (Fleet $fleet) => $this->positionCell($fleet, 'last_update'),
+                fn(Fleet $fleet) => $this->positionCell($fleet, 'last_update'),
             )
             ->addColumn(
                 'action',
-                fn (Fleet $fleet) => view('pages.fleets.columns.action', [
+                fn(Fleet $fleet) => view('pages.fleets.columns.action', [
                     'fleet' => $fleet,
                     'positionReference' => $this->fleetService->positionReference($fleet),
                 ])->render(),
@@ -193,7 +205,7 @@ class FleetController extends Controller
         $customerId = $this->customerScope();
         $customers = Customer::query()
             ->where('is_active', true)
-            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
+            ->when($customerId !== null, fn(Builder $query) => $query->whereKey($customerId))
             ->orderBy('name')
             ->get();
 
@@ -272,7 +284,7 @@ class FleetController extends Controller
         $customerId = $this->customerScope();
         $customers = Customer::query()
             ->where('is_active', true)
-            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
+            ->when($customerId !== null, fn(Builder $query) => $query->whereKey($customerId))
             ->orderBy('name')
             ->get();
 

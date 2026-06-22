@@ -41,6 +41,50 @@
                         <p class="card-subtitle">View and manage vehicle-device assignments.</p>
                     </div>
                 </div>
+                <div class="fleet-filter-bar">
+                    <div class="fleet-filter-group">
+                        <label class="fleet-filter-label" for="filterHasFuelSensor">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 3v13a2 2 0 0 0 2 2h14v-5" />
+                                <path d="M18 3a3 3 0 0 1 3 3" />
+                                <circle cx="21" cy="9" r="1" />
+                                <path d="M13 5H9a2 2 0 0 0-2 2v4" />
+                            </svg>
+                            Fuel Sensor
+                        </label>
+                        <select id="filterHasFuelSensor" class="fleet-filter-select">
+                            <option value="">Semua</option>
+                            <option value="1">Terpasang</option>
+                            <option value="0">Tidak Terpasang</option>
+                        </select>
+                    </div>
+                    <div class="fleet-filter-group">
+                        <label class="fleet-filter-label" for="filterFuelSensorStatus">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 8v4" />
+                                <path d="M12 16h.01" />
+                            </svg>
+                            Status
+                        </label>
+                        <select id="filterFuelSensorStatus" class="fleet-filter-select">
+                            <option value="">Semua</option>
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Tidak Aktif</option>
+                        </select>
+                    </div>
+                    <button type="button" id="resetFleetFilter" class="fleet-filter-reset" title="Reset filter"
+                        style="display:none">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                        </svg>
+                        Reset
+                    </button>
+                </div>
 
                 <div class="data-table-container">
                     <table class="table js-data-table" id="fleetTable" data-url="{{ route('fleets.data') }}"
@@ -56,11 +100,13 @@
                                 <th data-column="fuel_sensor" data-name="has_fuel_sensor" data-align="center">Fuel Sensor
                                 </th>
                                 <th data-column="fuel_sensor_installed_at">Installed Date</th>
-                                <th data-column="fuel_sensor_status" data-name="fuel_sensor_status" data-align="center">Fuel
+                                <th data-column="fuel_sensor_status" data-name="fuel_sensor_status" data-align="center">
+                                    Fuel
                                     Sensor Status</th>
                                 <th data-column="address" data-orderable="false">Address</th>
                                 <th data-column="mileage" data-orderable="false">Mileage</th>
-                                <th data-column="vehicle_status" data-orderable="false" data-align="center">Vehicle Status
+                                <th data-column="vehicle_status" data-orderable="false" data-align="center">Vehicle
+                                    Status
                                 </th>
                                 <th data-column="engine" data-orderable="false" data-align="center">Engine</th>
                                 <th data-column="last_update" data-orderable="false">Last Update</th>
@@ -157,3 +203,58 @@
         </x-modal>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        (function() {
+            function buildUrl(base) {
+                var params = new URLSearchParams();
+                var sensor = document.getElementById('filterHasFuelSensor').value;
+                var status = document.getElementById('filterFuelSensorStatus').value;
+                if (sensor !== '') params.set('has_fuel_sensor', sensor);
+                if (status !== '') params.set('fuel_sensor_status', status);
+                var qs = params.toString();
+                return qs ? (base + '?' + qs) : base;
+            }
+
+            function syncResetBtn() {
+                var sensor = document.getElementById('filterHasFuelSensor').value;
+                var status = document.getElementById('filterFuelSensorStatus').value;
+                var resetBtn = document.getElementById('resetFleetFilter');
+                resetBtn.style.display = (sensor !== '' || status !== '') ? '' : 'none';
+
+                document.getElementById('filterHasFuelSensor').classList.toggle('fleet-filter-select--active',
+                    sensor !== '');
+                document.getElementById('filterFuelSensorStatus').classList.toggle('fleet-filter-select--active',
+                    status !== '');
+            }
+
+            var BASE_URL = '{{ route('fleets.data') }}';
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var tableEl = document.getElementById('fleetTable');
+                if (!tableEl) return;
+
+                tableEl.addEventListener('datatable:ready', function(e) {
+                    var dt = e.detail;
+
+                    function applyFilter() {
+                        syncResetBtn();
+                        dt.ajax.url(buildUrl(BASE_URL)).load();
+                    }
+
+                    document.getElementById('filterHasFuelSensor').addEventListener('change',
+                        applyFilter);
+                    document.getElementById('filterFuelSensorStatus').addEventListener('change',
+                        applyFilter);
+
+                    document.getElementById('resetFleetFilter').addEventListener('click', function() {
+                        document.getElementById('filterHasFuelSensor').value = '';
+                        document.getElementById('filterFuelSensorStatus').value = '';
+                        applyFilter();
+                    });
+                });
+            });
+        })();
+    </script>
+@endpush

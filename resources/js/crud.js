@@ -632,6 +632,8 @@ function initializeDataTable(tableElement, page) {
         }
     });
 
+    tableElement.dispatchEvent(new CustomEvent('datatable:ready', { detail: table }));
+
     return table;
 }
 
