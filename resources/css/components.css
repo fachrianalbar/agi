@@ -528,6 +528,7 @@
 }
 
 .select2-container--default .select2-selection--single {
+    position: relative;
     height: 42px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -544,6 +545,23 @@
 .select2-container--default .select2-selection--single .select2-selection__arrow {
     top: 8px;
     right: 10px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    right: 34px;
+    height: 40px;
+    margin: 0;
+    padding: 0 6px;
+    color: var(--color-text-muted);
+    font-size: 18px;
+    line-height: 40px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: var(--color-danger);
 }
 
 .select2-container--default.select2-container--focus .select2-selection--single,

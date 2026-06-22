@@ -22,10 +22,11 @@ class FleetService
     /**
      * Get the base query for DataTables server-side processing.
      */
-    public function getDataTableQuery(): Builder
+    public function getDataTableQuery(?string $customerId = null): Builder
     {
         return Fleet::query()
             ->with('customer')
+            ->when($customerId !== null, fn (Builder $query) => $query->where('fleets.customer_id', $customerId))
             ->select([
                 'id',
                 'customer_id',
@@ -47,10 +48,11 @@ class FleetService
     /**
      * Get customers that can be selected for fleet synchronization.
      */
-    public function getSyncCustomers(): Collection
+    public function getSyncCustomers(?string $customerId = null): Collection
     {
         return Customer::query()
             ->where('is_active', true)
+            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
             ->whereNotNull('username')
             ->whereNotNull('password')
             ->where('username', '!=', '')
@@ -62,7 +64,7 @@ class FleetService
     /**
      * Synchronize customer fleets from the GPS provider.
      *
-     * @return array{total: int, created: int, updated: int, unchanged: int}
+     * @return array{total: int, created: int, updated: int, deleted: int, unchanged: int}
      */
     public function synchronize(Customer $customer): array
     {
@@ -73,15 +75,34 @@ class FleetService
                 'total' => count($devices),
                 'created' => 0,
                 'updated' => 0,
+                'deleted' => 0,
                 'unchanged' => 0,
             ];
 
             foreach ($devices as $device) {
-                $fleet = Fleet::query()
+                $relatedFleets = Fleet::query()
                     ->withTrashed()
                     ->where('customer_id', $customer->id)
-                    ->where('device_name', $device['device_name'])
-                    ->first();
+                    ->where(function (Builder $query) use ($device): void {
+                        $query
+                            ->where('vehicle_name', $device['vehicle_name'])
+                            ->orWhere('device_name', $device['device_name']);
+                    })
+                    ->lockForUpdate()
+                    ->get();
+
+                $fleet = $relatedFleets->first(
+                    fn (Fleet $candidate): bool => $candidate->vehicle_name === $device['vehicle_name']
+                        && $candidate->device_name === $device['device_name'],
+                );
+
+                $relatedFleets
+                    ->reject(fn (Fleet $candidate): bool => $fleet?->is($candidate) ?? false)
+                    ->filter(fn (Fleet $candidate): bool => ! $candidate->trashed())
+                    ->each(function (Fleet $candidate) use (&$summary): void {
+                        $candidate->delete();
+                        $summary['deleted']++;
+                    });
 
                 if (! $fleet) {
                     Fleet::query()->create([
@@ -95,10 +116,7 @@ class FleetService
                     continue;
                 }
 
-                $fleet->fill([
-                    'vehicle_name' => $device['vehicle_name'],
-                    'is_active' => true,
-                ]);
+                $fleet->fill(['is_active' => true]);
                 $changed = $fleet->isDirty() || $fleet->trashed();
 
                 if (! $changed) {
@@ -130,7 +148,7 @@ class FleetService
      * @param  list<array{ref: string, device_name: string}>  $requestedDevices
      * @return array<string, array<string, array<string, mixed>>>
      */
-    public function getLatestPositions(array $requestedDevices): array
+    public function getLatestPositions(array $requestedDevices, ?string $customerId = null): array
     {
         $deviceNames = collect($requestedDevices)
             ->pluck('device_name')
@@ -140,6 +158,7 @@ class FleetService
         $requestedByReference = collect($requestedDevices)->keyBy('ref');
         $fleets = Fleet::query()
             ->with('customer')
+            ->when($customerId !== null, fn (Builder $query) => $query->where('customer_id', $customerId))
             ->whereIn('device_name', $deviceNames)
             ->get()
             ->filter(function (Fleet $fleet) use ($requestedByReference): bool {

@@ -51,7 +51,7 @@
     <label for="customer_id" class="form-label">Customer Access</label>
     <select name="customer_id" id="customer_id" class="form-select js-select2" data-placeholder="All Customers"
         data-allow-clear="true">
-        <option value="">All Customers</option>
+        <option value=""></option>
         @foreach ($customers as $customer)
             <option value="{{ $customer->id }}" @selected($selectedCustomer == $customer->id)>{{ $customer->name }}</option>
         @endforeach

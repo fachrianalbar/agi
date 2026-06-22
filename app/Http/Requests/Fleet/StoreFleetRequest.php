@@ -47,7 +47,9 @@ class StoreFleetRequest extends FormRequest
                 'string',
                 'max:200',
                 Rule::unique('fleets', 'device_name')
-                    ->where(fn ($query) => $query->where('customer_id', $this->input('customer_id'))),
+                    ->where(fn ($query) => $query
+                        ->where('customer_id', $this->input('customer_id'))
+                        ->where('vehicle_name', $this->input('vehicle_name'))),
             ],
             'has_fuel_sensor' => ['boolean'],
             'fuel_sensor_installed_at' => ['nullable', Rule::requiredIf($this->boolean('has_fuel_sensor')), 'date', 'before_or_equal:today'],

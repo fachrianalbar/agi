@@ -29,10 +29,13 @@ class FleetController extends Controller
      */
     public function index(): View
     {
+        $customerId = $this->customerScope();
+
         return view('pages.fleets.index', [
-            'syncCustomers' => $this->fleetService->getSyncCustomers(),
+            'syncCustomers' => $this->fleetService->getSyncCustomers($customerId),
             'customers' => Customer::query()
                 ->where('is_active', true)
+                ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
                 ->orderBy('name')
                 ->get(),
         ]);
@@ -43,7 +46,7 @@ class FleetController extends Controller
      */
     public function data(): JsonResponse
     {
-        return DataTables::eloquent($this->fleetService->getDataTableQuery())
+        return DataTables::eloquent($this->fleetService->getDataTableQuery($this->customerScope()))
             ->filter(function (Builder $query): void {
                 $keyword = trim((string) request()->input('search.value'));
 
@@ -167,6 +170,7 @@ class FleetController extends Controller
         try {
             $positions = $this->fleetService->getLatestPositions(
                 $request->validated('devices'),
+                $this->customerScope(),
             );
         } catch (ExternalFleetApiException $exception) {
             Log::warning('Latest fleet positions could not be loaded.', [
@@ -186,8 +190,10 @@ class FleetController extends Controller
      */
     public function create(): View
     {
+        $customerId = $this->customerScope();
         $customers = Customer::query()
             ->where('is_active', true)
+            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
             ->orderBy('name')
             ->get();
 
@@ -199,7 +205,9 @@ class FleetController extends Controller
      */
     public function store(StoreFleetRequest $request): RedirectResponse
     {
-        $fleet = $this->fleetService->create($request->validated());
+        $data = $request->validated();
+        $this->ensureCustomerAccess(Customer::query()->findOrFail($data['customer_id']));
+        $fleet = $this->fleetService->create($data);
 
         return redirect()
             ->route('fleets.index')
@@ -212,6 +220,7 @@ class FleetController extends Controller
     public function sync(SyncFleetRequest $request): RedirectResponse|JsonResponse
     {
         $customer = Customer::query()->findOrFail($request->validated('customer_id'));
+        $this->ensureCustomerAccess($customer);
 
         try {
             $summary = $this->fleetService->synchronize($customer);
@@ -234,10 +243,11 @@ class FleetController extends Controller
         }
 
         $message = sprintf(
-            'Fleet synchronization for %s completed: %d created, %d updated, and %d unchanged.',
+            'Fleet synchronization for %s completed: %d created, %d updated, %d removed, and %d unchanged.',
             $customer->name,
             $summary['created'],
             $summary['updated'],
+            $summary['deleted'],
             $summary['unchanged'],
         );
 
@@ -258,8 +268,11 @@ class FleetController extends Controller
      */
     public function edit(Fleet $fleet): View
     {
+        $this->ensureFleetAccess($fleet);
+        $customerId = $this->customerScope();
         $customers = Customer::query()
             ->where('is_active', true)
+            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
             ->orderBy('name')
             ->get();
 
@@ -271,7 +284,10 @@ class FleetController extends Controller
      */
     public function update(UpdateFleetRequest $request, Fleet $fleet): RedirectResponse|JsonResponse
     {
-        $this->fleetService->update($fleet, $request->validated());
+        $this->ensureFleetAccess($fleet);
+        $data = $request->validated();
+        $this->ensureCustomerAccess(Customer::query()->findOrFail($data['customer_id']));
+        $this->fleetService->update($fleet, $data);
 
         $message = "Fleet \"{$fleet->fresh()->vehicle_name}\" updated successfully.";
 
@@ -289,6 +305,7 @@ class FleetController extends Controller
      */
     public function destroy(Request $request, Fleet $fleet): RedirectResponse|JsonResponse
     {
+        $this->ensureFleetAccess($fleet);
         $vehicleName = $fleet->vehicle_name;
         $this->fleetService->delete($fleet);
 
@@ -311,5 +328,20 @@ class FleetController extends Controller
             'position' => $this->fleetService->cachedPositionSnapshot($fleet),
             'positionReference' => $this->fleetService->positionReference($fleet),
         ])->render();
+    }
+
+    private function customerScope(): ?string
+    {
+        return auth()->user()?->customer_id;
+    }
+
+    private function ensureCustomerAccess(Customer $customer): void
+    {
+        abort_unless(auth()->user()?->canAccessCustomer($customer), 403);
+    }
+
+    private function ensureFleetAccess(Fleet $fleet): void
+    {
+        abort_unless($this->customerScope() === null || $fleet->customer_id === $this->customerScope(), 403);
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Requests\Fleet\SyncFleetRequest;
 use App\Models\Customer;
 use App\Models\Fleet;
+use App\Models\User;
 use App\Services\FleetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -201,6 +202,50 @@ class FleetSynchronizationTest extends TestCase
         }
     }
 
+    public function test_customer_user_can_only_view_and_manage_own_fleets(): void
+    {
+        $customer = $this->createCustomer();
+        $otherCustomer = $this->createCustomer([
+            'name' => 'Other Customer',
+            'username' => 'other',
+            'email' => 'other@example.com',
+        ]);
+        $fleet = $this->createFleet($customer, 'B 1071 DFP', '42976836');
+        $otherFleet = $this->createFleet($otherCustomer, 'B 1075 DFP', '42995737');
+        $this->actingAs(User::factory()->create(['customer_id' => $customer->id]));
+
+        $this->get(route('fleets.index'))
+            ->assertOk()
+            ->assertSee($customer->name)
+            ->assertDontSee($otherCustomer->name);
+
+        $this->getJson(route('fleets.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => '', 'regex' => 'false'],
+            'columns' => [[
+                'data' => 'vehicle_name',
+                'name' => 'vehicle_name',
+                'searchable' => 'true',
+                'orderable' => 'true',
+                'search' => ['value' => '', 'regex' => 'false'],
+            ]],
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsTotal', 1)
+            ->assertSee($fleet->vehicle_name)
+            ->assertDontSee($otherFleet->vehicle_name);
+
+        $this->get(route('fleets.edit', $otherFleet))->assertForbidden();
+        $this->postJson(route('fleets.sync'), ['customer_id' => $otherCustomer->id])->assertForbidden();
+        $this->postJson(route('fleets.latest-positions'), [
+            'devices' => [$this->positionRequestDevice($otherFleet)],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', []);
+    }
+
     public function test_fleets_are_upserted_and_access_token_is_cached_per_customer(): void
     {
         $customer = $this->createCustomer();
@@ -227,7 +272,7 @@ class FleetSynchronizationTest extends TestCase
 
             return Http::response([[
                 [
-                    'vehicleName' => $deviceRequests === 1 ? 'B 1071 DFP' : 'B 1071 DFP Updated',
+                    'vehicleName' => 'B 1071 DFP',
                     'deviceName' => '42976836',
                 ],
                 [
@@ -249,8 +294,8 @@ class FleetSynchronizationTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.created', 0)
-            ->assertJsonPath('data.updated', 1)
-            ->assertJsonPath('data.unchanged', 1);
+            ->assertJsonPath('data.updated', 0)
+            ->assertJsonPath('data.unchanged', 2);
 
         $this->assertSame(1, $tokenRequests);
         $this->assertSame(2, $deviceRequests);
@@ -258,12 +303,69 @@ class FleetSynchronizationTest extends TestCase
         $this->assertDatabaseHas('fleets', [
             'customer_id' => $customer->id,
             'device_name' => '42976836',
-            'vehicle_name' => 'B 1071 DFP Updated',
+            'vehicle_name' => 'B 1071 DFP',
         ]);
         $this->assertSame(
             $customer->password,
             Customer::query()->findOrFail($customer->id)->password,
         );
+    }
+
+    public function test_sync_removes_conflicting_vehicle_or_device_and_only_updates_the_matching_pair(): void
+    {
+        $customer = $this->createCustomer();
+        $otherCustomer = $this->createCustomer([
+            'name' => 'Other Customer',
+            'username' => 'other',
+            'email' => 'other@example.com',
+        ]);
+        $matchingFleet = $this->createFleet($customer, 'B 1071 DFP', '42976836');
+        $matchingFleet->update([
+            'has_fuel_sensor' => true,
+            'fuel_sensor_installed_at' => '2026-06-10',
+            'fuel_sensor_status' => 'active',
+            'latest_address' => 'Jalan Gajah Mada',
+            'is_active' => false,
+        ]);
+        $differentVehicle = $this->createFleet($customer, 'B 1075 DFP', '42976836');
+        $differentDevice = $this->createFleet($customer, 'B 1071 DFP', '42995737');
+        $otherCustomerFleet = $this->createFleet($otherCustomer, 'B 1071 DFP', '42976836');
+
+        Http::fake([
+            '*/token*' => Http::response([
+                'access_token' => 'access-token',
+                'expires_in' => 3600,
+            ]),
+            '*/deviceInfo*' => Http::response([[
+                [
+                    'vehicleName' => 'B 1071 DFP',
+                    'deviceName' => '42976836',
+                ],
+            ]]),
+        ]);
+
+        $this->postJson(route('fleets.sync'), [
+            'customer_id' => $customer->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.created', 0)
+            ->assertJsonPath('data.updated', 1)
+            ->assertJsonPath('data.deleted', 2);
+
+        $this->assertSame(2, Fleet::query()->count());
+        $this->assertDatabaseHas('fleets', [
+            'id' => $matchingFleet->id,
+            'vehicle_name' => 'B 1071 DFP',
+            'device_name' => '42976836',
+            'has_fuel_sensor' => true,
+            'fuel_sensor_installed_at' => '2026-06-10 00:00:00',
+            'fuel_sensor_status' => 'active',
+            'latest_address' => 'Jalan Gajah Mada',
+            'is_active' => true,
+        ]);
+        $this->assertSoftDeleted('fleets', ['id' => $differentVehicle->id]);
+        $this->assertSoftDeleted('fleets', ['id' => $differentDevice->id]);
+        $this->assertDatabaseHas('fleets', ['id' => $otherCustomerFleet->id, 'deleted_at' => null]);
     }
 
     public function test_access_token_is_refreshed_once_when_device_api_rejects_it(): void
@@ -370,7 +472,7 @@ class FleetSynchronizationTest extends TestCase
         $customer = $this->createCustomer();
         $fleet = Fleet::query()->create([
             'customer_id' => $customer->id,
-            'vehicle_name' => 'Old Vehicle',
+            'vehicle_name' => 'B 1071 DFP',
             'device_name' => '42976836',
             'is_active' => false,
         ]);

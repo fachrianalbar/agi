@@ -40,7 +40,9 @@ class UpdateFleetRequest extends FormRequest
                 'string',
                 'max:200',
                 Rule::unique('fleets', 'device_name')
-                    ->where(fn ($query) => $query->where('customer_id', $this->input('customer_id')))
+                    ->where(fn ($query) => $query
+                        ->where('customer_id', $this->input('customer_id'))
+                        ->where('vehicle_name', $this->input('vehicle_name')))
                     ->ignore($fleet?->id),
             ],
             'has_fuel_sensor' => ['boolean'],
