@@ -64,7 +64,7 @@ class TotalKilatGpsService
     public function getLatestPositions(Customer $customer, array $deviceNames): array
     {
         $deviceNames = array_values(array_unique(array_filter(
-            array_map(static fn ($deviceName) => trim((string) $deviceName), $deviceNames),
+            array_map(static fn($deviceName) => trim((string) $deviceName), $deviceNames),
         )));
         $positions = [];
         $uncachedDeviceNames = [];
@@ -795,7 +795,7 @@ class TotalKilatGpsService
 
     private function positionCacheKey(Customer $customer, string $deviceName): string
     {
-        return "total-kilat-gps:customer:{$customer->id}:position:".hash('sha256', $deviceName);
+        return "total-kilat-gps:customer:{$customer->id}:position:" . hash('sha256', $deviceName);
     }
 
     private function grantType(): string

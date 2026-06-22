@@ -25,7 +25,7 @@ class FleetService
     {
         return Fleet::query()
             ->with('customer')
-            ->when($customerId !== null, fn (Builder $query) => $query->where('fleets.customer_id', $customerId))
+            ->when($customerId !== null, fn(Builder $query) => $query->where('fleets.customer_id', $customerId))
             ->select([
                 'id',
                 'customer_id',
@@ -51,7 +51,7 @@ class FleetService
     {
         return Customer::query()
             ->where('is_active', true)
-            ->when($customerId !== null, fn (Builder $query) => $query->whereKey($customerId))
+            ->when($customerId !== null, fn(Builder $query) => $query->whereKey($customerId))
             ->whereNotNull('username')
             ->whereNotNull('password')
             ->where('username', '!=', '')
@@ -91,13 +91,13 @@ class FleetService
                     ->get();
 
                 $fleet = $relatedFleets->first(
-                    fn (Fleet $candidate): bool => $candidate->vehicle_name === $device['vehicle_name']
+                    fn(Fleet $candidate): bool => $candidate->vehicle_name === $device['vehicle_name']
                         && $candidate->device_name === $device['device_name'],
                 );
 
                 $relatedFleets
-                    ->reject(fn (Fleet $candidate): bool => $fleet?->is($candidate) ?? false)
-                    ->filter(fn (Fleet $candidate): bool => ! $candidate->trashed())
+                    ->reject(fn(Fleet $candidate): bool => $fleet?->is($candidate) ?? false)
+                    ->filter(fn(Fleet $candidate): bool => ! $candidate->trashed())
                     ->each(function (Fleet $candidate) use (&$summary): void {
                         $candidate->delete();
                         $summary['deleted']++;
@@ -157,7 +157,7 @@ class FleetService
         $requestedByReference = collect($requestedDevices)->keyBy('ref');
         $fleets = Fleet::query()
             ->with('customer')
-            ->when($customerId !== null, fn (Builder $query) => $query->where('customer_id', $customerId))
+            ->when($customerId !== null, fn(Builder $query) => $query->where('customer_id', $customerId))
             ->whereIn('device_name', $deviceNames)
             ->get()
             ->filter(function (Fleet $fleet) use ($requestedByReference): bool {
@@ -343,7 +343,7 @@ class FleetService
     {
         $formattedMileage = number_format(floor($mileage), 0, '', '.');
 
-        return $formattedMileage.' km';
+        return $formattedMileage . ' km';
     }
 
     /**
@@ -392,7 +392,7 @@ class FleetService
      */
     public function create(array $data): Fleet
     {
-        return DB::transaction(fn () => Fleet::create($data));
+        return DB::transaction(fn() => Fleet::create($data));
     }
 
     /**

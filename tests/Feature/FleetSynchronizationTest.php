@@ -164,19 +164,21 @@ class FleetSynchronizationTest extends TestCase
             'fuel_sensor_status' => 'active',
         ]);
 
-        foreach ([
-            'B 1071 DFP',
-            '42976836',
-            'AGI Customer',
-            'Yes',
-            '2026-06-10',
-            'Active',
-            'Gajah Mada',
-            '39.727 km',
-            'Stop',
-            'Off',
-            '09 Juni 2026',
-        ] as $keyword) {
+        foreach (
+            [
+                'B 1071 DFP',
+                '42976836',
+                'AGI Customer',
+                'Yes',
+                '2026-06-10',
+                'Active',
+                'Gajah Mada',
+                '39.727 km',
+                'Stop',
+                'Off',
+                '09 Juni 2026',
+            ] as $keyword
+        ) {
             $response = $this->getJson(route('fleets.data', [
                 'draw' => 1,
                 'start' => 0,
