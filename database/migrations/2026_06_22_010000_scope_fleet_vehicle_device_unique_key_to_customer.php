@@ -8,17 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('fleets', function (Blueprint $table) {
-            $table->dropUnique('fleets_vehicle_device_unique');
-            $table->unique(['customer_id', 'vehicle_name', 'device_name'], 'fleets_customer_vehicle_device_unique');
+        $indexes = collect(Schema::getIndexes('fleets'))->keyBy('name');
+
+        Schema::table('fleets', function (Blueprint $table) use ($indexes) {
+            if ($indexes->has('fleets_vehicle_device_unique')) {
+                $table->dropUnique('fleets_vehicle_device_unique');
+            }
+
+            if (! $indexes->has('fleets_customer_vehicle_device_unique')) {
+                $table->unique(['customer_id', 'vehicle_name', 'device_name'], 'fleets_customer_vehicle_device_unique');
+            }
         });
     }
 
     public function down(): void
     {
-        Schema::table('fleets', function (Blueprint $table) {
-            $table->dropUnique('fleets_customer_vehicle_device_unique');
-            $table->unique(['vehicle_name', 'device_name'], 'fleets_vehicle_device_unique');
+        $indexes = collect(Schema::getIndexes('fleets'))->keyBy('name');
+
+        Schema::table('fleets', function (Blueprint $table) use ($indexes) {
+            if ($indexes->has('fleets_customer_vehicle_device_unique')) {
+                $table->dropUnique('fleets_customer_vehicle_device_unique');
+            }
+
+            if (! $indexes->has('fleets_vehicle_device_unique')) {
+                $table->unique(['vehicle_name', 'device_name'], 'fleets_vehicle_device_unique');
+            }
         });
     }
 };

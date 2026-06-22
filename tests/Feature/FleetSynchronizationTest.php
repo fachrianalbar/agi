@@ -619,6 +619,60 @@ class FleetSynchronizationTest extends TestCase
             ->assertJsonPath("data.{$reference}.map.url", null);
     }
 
+    public function test_latest_positions_retry_address_lookup_after_an_unavailable_snapshot(): void
+    {
+        $customer = $this->createCustomer();
+        $fleet = $this->createFleet($customer, 'B 2029 SJO', '60697058200041');
+        $fleet->update(['latest_address' => 'Unavailable']);
+        Cache::put('nominatim:address:-0.47737:117.13734', '', now()->addDays(30));
+
+        Http::fake(function (Request $request) {
+            $host = parse_url($request->url(), PHP_URL_HOST);
+
+            if ($host === 'nominatim.openstreetmap.org') {
+                return Http::response([
+                    'display_name' => 'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+                ]);
+            }
+
+            if (str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/token')) {
+                return Http::response([
+                    'access_token' => 'customer-access-token',
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            return Http::response(json_encode(json_encode([[
+                [
+                    'deviceName' => '60697058200041',
+                    'datetime' => '2026-06-09 20:35:07',
+                    'mileage' => 10137.443,
+                    'heading' => 65,
+                    'speed' => 0.2,
+                    'latitude' => -0.47737,
+                    'longitude' => 117.137335,
+                    'acc' => 0,
+                    'statusIcon' => 2,
+                ],
+            ]])));
+        });
+
+        $devices = [$this->positionRequestDevice($fleet)];
+        $reference = $devices[0]['ref'];
+
+        $this->postJson(route('fleets.latest-positions'), compact('devices'))
+            ->assertOk()
+            ->assertJsonPath(
+                "data.{$reference}.address.text",
+                'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+            );
+
+        $this->assertDatabaseHas('fleets', [
+            'id' => $fleet->id,
+            'latest_address' => 'Jalan Pangeran Antasari, Samarinda, Kalimantan Timur, Indonesia',
+        ]);
+    }
+
     public function test_latest_positions_use_separate_tokens_for_each_customer(): void
     {
         $firstCustomer = $this->createCustomer();
